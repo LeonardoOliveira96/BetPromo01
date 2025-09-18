@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Sun, Moon, LogOut, Plus } from 'lucide-react';
+import { Sun, Moon, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -18,7 +18,7 @@ const Header = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const isCreatePage = location.pathname === '/criar-promocao';
 
   const handleLogout = () => {
@@ -49,18 +49,6 @@ const Header = () => {
 
         {/* Actions */}
         <div className="flex items-center space-x-2">
-          {/* Nova Promoção - só mostra se não estiver na página de criar */}
-          {!isCreatePage && (
-            <Button
-              onClick={() => navigate('/criar-promocao')}
-              size="sm"
-              className="hidden sm:flex"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Promoção
-            </Button>
-          )}
-
           {/* Theme Toggle */}
           <Button
             variant="ghost"

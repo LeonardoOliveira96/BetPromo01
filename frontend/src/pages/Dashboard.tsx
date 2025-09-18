@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -13,13 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
-  Search, 
-  Calendar as CalendarIcon, 
-  Grid3X3, 
-  List, 
-  Plus, 
-  Edit, 
+import {
+  Search,
+  Calendar as CalendarIcon,
+  Grid3X3,
+  List,
+  Plus,
+  Edit,
   Trash2,
   Eye,
   Filter
@@ -30,7 +30,8 @@ import { usePromotions } from '@/hooks/use-promotions';
 import { useNavigate } from 'react-router-dom';
 import { Promotion, MeioComunicacao } from '@/types/promotion';
 import { cn } from '@/lib/utils';
-import { 
+
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -47,7 +48,7 @@ type ViewMode = 'table' | 'cards';
 const Dashboard = () => {
   const { promotions, deletePromotion, isLoading } = usePromotions();
   const navigate = useNavigate();
-  
+
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -58,7 +59,7 @@ const Dashboard = () => {
 
     // Filtro por busca (nome ou brand)
     if (searchQuery) {
-      filtered = filtered.filter(promo => 
+      filtered = filtered.filter(promo =>
         promo.nomePromocao.toLowerCase().includes(searchQuery.toLowerCase()) ||
         promo.brand.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -111,9 +112,9 @@ const Dashboard = () => {
     };
 
     return meios.map(meio => (
-      <Badge 
-        key={meio} 
-        variant="outline" 
+      <Badge
+        key={meio}
+        variant="outline"
         className={cn("text-xs", colors[meio])}
       >
         {meio}
@@ -145,7 +146,7 @@ const Dashboard = () => {
             Gerencie todas as suas campanhas promocionais
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             onClick={() => navigate('/criar-promocao')}
@@ -154,25 +155,36 @@ const Dashboard = () => {
           >
             <Plus className="h-4 w-4" />
           </Button>
-          
-          {/* View Mode Toggle */}
-          <div className="flex rounded-lg border p-1">
-            <Button
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('cards')}
-              className="px-3"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('table')}
-              className="px-3"
-            >
-              <List className="h-4 w-4" />
-            </Button>
+
+          <Button
+            onClick={() => navigate('/criar-promocao')}
+            className="hidden sm:flex"
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Promoção
+          </Button>
+
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex rounded-lg border p-1">
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="px-3"
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="px-3"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -318,7 +330,7 @@ const Dashboard = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tem certeza que deseja excluir a promoção "{promotion.nomePromocao}"? 
+                                Tem certeza que deseja excluir a promoção "{promotion.nomePromocao}"?
                                 Esta ação não pode ser desfeita.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -339,7 +351,7 @@ const Dashboard = () => {
                 ))}
               </TableBody>
             </Table>
-            
+
             {filteredPromotions.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-muted-foreground">
@@ -374,11 +386,11 @@ const Dashboard = () => {
                     </h3>
                     <Badge variant="secondary">{dayPromotions.length} promoção(ões)</Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {dayPromotions.map((promotion) => (
-                      <Card 
-                        key={promotion.id} 
+                      <Card
+                        key={promotion.id}
                         className="hover:shadow-md transition-shadow flex flex-col h-full"
                         onClick={() => navigate(`/promocao/${promotion.id}`)}
                       >
@@ -386,19 +398,19 @@ const Dashboard = () => {
                           <div className="flex items-start justify-between">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <img 
-                                  src={`/images/logo-${promotion.brand.toLowerCase()}.${promotion.brand === 'VeraBet' ? 'jpg' : 'png'}`} 
-                                  alt={`Logo ${promotion.brand}`} 
-                                  className="w-5 h-5 object-contain" 
+                                <img
+                                  src={`/images/logo-${promotion.brand.toLowerCase()}.${promotion.brand === 'VeraBet' ? 'jpg' : 'png'}`}
+                                  alt={`Logo ${promotion.brand}`}
+                                  className="w-5 h-5 object-contain"
                                 />
                                 <p className="font-semibold text-primary text-sm">{promotion.brand}</p>
                               </div>
                               <h4 className="font-medium text-base leading-tight">{promotion.nomePromocao}</h4>
                               <div className="flex items-center gap-1 mt-1">
                                 <span>
-                                  {promotion.tipo === 'Cassino' ? '🎰' : 
-                                   promotion.tipo === 'Esportivo' ? '⚽' : 
-                                   promotion.tipo === 'Ao vivo' ? '🎲' : ''}
+                                  {promotion.tipo === 'Cassino' ? '🎰' :
+                                    promotion.tipo === 'Esportivo' ? '⚽' :
+                                      promotion.tipo === 'Ao vivo' ? '🎲' : ''}
                                 </span>
                                 <span className="text-xs text-muted-foreground">{promotion.tipo}</span>
                               </div>
@@ -409,15 +421,15 @@ const Dashboard = () => {
                         <CardContent className="space-y-3 flex-grow">
                           <div className="text-sm grid grid-cols-2 gap-x-2 gap-y-1">
                             <div className="col-span-1">
-                              <span className="text-muted-foreground font-medium block">Início:</span> 
+                              <span className="text-muted-foreground font-medium block">Início:</span>
                               <span className="text-sm">{formatDateTime(promotion.dataInicio)}</span>
                             </div>
                             <div className="col-span-1">
-                              <span className="text-muted-foreground font-medium block">Fim:</span> 
+                              <span className="text-muted-foreground font-medium block">Fim:</span>
                               <span className="text-sm">{formatDateTime(promotion.dataFim)}</span>
                             </div>
                             <div className="col-span-2 mt-1">
-                              <span className="text-muted-foreground font-medium block">Base:</span> 
+                              <span className="text-muted-foreground font-medium block">Base:</span>
                               <span className="text-sm">{promotion.base}</span>
                             </div>
                             <div className="col-span-2 mt-1">
@@ -455,8 +467,8 @@ const Dashboard = () => {
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button 
-                                    variant="outline" 
+                                  <Button
+                                    variant="outline"
                                     size="sm"
                                     onClick={(e) => e.stopPropagation()}
                                   >
@@ -468,7 +480,7 @@ const Dashboard = () => {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Tem certeza que deseja excluir a promoção "{promotion.nomePromocao}"? 
+                                      Tem certeza que deseja excluir a promoção "{promotion.nomePromocao}"?
                                       Esta ação não pode ser desfeita.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>

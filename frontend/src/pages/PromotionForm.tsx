@@ -7,12 +7,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Loader2, Plus, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, X, Calendar as CalendarIcon } from 'lucide-react';
 import { usePromotions } from '@/hooks/use-promotions';
 import { PromotionFormData, TipoPromocao, TipoSaldo, MeioComunicacao, Segment } from '@/types/promotion';
 import { toast } from '@/hooks/use-toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
+import { format, parse } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const BRANDS = ['7k', 'Cassino', 'VeraBet'];
 const TIPOS_PROMOCAO: TipoPromocao[] = ['Cassino', 'Esportivo', 'Ao vivo'];
@@ -23,7 +28,7 @@ const PromotionForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { addPromotion, updatePromotion, getPromotion, isLoading } = usePromotions();
-  
+
   const isEditing = Boolean(id);
   const existingPromotion = isEditing ? getPromotion(id!) : undefined;
 
@@ -48,7 +53,7 @@ const PromotionForm = () => {
     if (isEditing && existingPromotion) {
       const startDate = new Date(existingPromotion.dataInicio);
       const endDate = new Date(existingPromotion.dataFim);
-      
+
       setFormData({
         brand: existingPromotion.brand,
         nomePromocao: existingPromotion.nomePromocao,
@@ -112,7 +117,7 @@ const PromotionForm = () => {
   const validateForm = (): boolean => {
     const required = ['brand', 'nomePromocao', 'dataInicio', 'dataFim', 'base'];
     const missing = required.filter(field => !formData[field as keyof PromotionFormData]);
-    
+
     if (missing.length > 0) {
       toast({
         title: "Campos obrigatórios não preenchidos",
@@ -145,7 +150,7 @@ const PromotionForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     try {
@@ -205,10 +210,10 @@ const PromotionForm = () => {
                     {BRANDS.map(brand => (
                       <SelectItem key={brand} value={brand}>
                         <div className="flex items-center gap-2">
-                          <img 
-                            src={`/images/logo-${brand.toLowerCase()}.${brand === 'VeraBet' ? 'jpg' : 'png'}`} 
-                            alt={`Logo ${brand}`} 
-                            className="w-5 h-5 object-contain" 
+                          <img
+                            src={`/images/logo-${brand.toLowerCase()}.${brand === 'VeraBet' ? 'jpg' : 'png'}`}
+                            alt={`Logo ${brand}`}
+                            className="w-5 h-5 object-contain"
                           />
                           {brand}
                         </div>
@@ -233,9 +238,9 @@ const PromotionForm = () => {
                       <SelectItem key={tipo} value={tipo}>
                         <div className="flex items-center gap-2">
                           <span>
-                            {tipo === 'Cassino' ? '🎰' : 
-                             tipo === 'Esportivo' ? '⚽' : 
-                             tipo === 'Ao vivo' ? '🎲' : ''}
+                            {tipo === 'Cassino' ? '🎰' :
+                              tipo === 'Esportivo' ? '⚽' :
+                                tipo === 'Ao vivo' ? '🎲' : ''}
                           </span>
                           {tipo}
                         </div>
@@ -301,13 +306,27 @@ const PromotionForm = () => {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="dataInicio">Data</Label>
-                    <Input
-                      id="dataInicio"
-                      type="date"
-                      value={formData.dataInicio}
-                      onChange={(e) => handleInputChange('dataInicio', e.target.value)}
-                      disabled={isLoading}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          disabled={isLoading}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.dataInicio ? format(new Date(formData.dataInicio), 'dd/MM/yyyy') : "Selecione uma data"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <DayPicker
+                          mode="single"
+                          selected={formData.dataInicio ? new Date(formData.dataInicio) : undefined}
+                          onSelect={(date) => date && handleInputChange('dataInicio', format(date, 'yyyy-MM-dd'))}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="horaInicio">Hora</Label>
@@ -327,13 +346,27 @@ const PromotionForm = () => {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="dataFim">Data</Label>
-                    <Input
-                      id="dataFim"
-                      type="date"
-                      value={formData.dataFim}
-                      onChange={(e) => handleInputChange('dataFim', e.target.value)}
-                      disabled={isLoading}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          disabled={isLoading}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.dataFim ? format(new Date(formData.dataFim), 'dd/MM/yyyy') : "Selecione uma data"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <DayPicker
+                          mode="single"
+                          selected={formData.dataFim ? new Date(formData.dataFim) : undefined}
+                          onSelect={(date) => date && handleInputChange('dataFim', format(date, 'yyyy-MM-dd'))}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="horaFim">Hora</Label>
@@ -363,7 +396,7 @@ const PromotionForm = () => {
                   <Checkbox
                     id={meio}
                     checked={formData.meiosComunicacao.includes(meio)}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       handleCommunicationChange(meio, checked as boolean)
                     }
                     disabled={isLoading}
@@ -451,8 +484,8 @@ const PromotionForm = () => {
           >
             Cancelar
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={isLoading}
             className="sm:w-auto w-full"
           >

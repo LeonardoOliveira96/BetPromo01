@@ -163,7 +163,7 @@ const PromotionSchema = new Schema<IPromotion>(
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Criador da promoção é obrigatório'],
+      required: false, // Temporariamente opcional para testes
     },
   },
   {

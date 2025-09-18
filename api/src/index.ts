@@ -39,7 +39,7 @@ async function startServer() {
 
     // CORS
     app.use(cors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:8080'],
       credentials: true,
     }));
 
@@ -76,7 +76,10 @@ async function startServer() {
     await server.start();
     
     // Aplica o middleware do Apollo
-    app.use('/graphql', cors<cors.CorsRequest>(), express.json(), expressMiddleware(server, {
+    app.use('/graphql', cors<cors.CorsRequest>({
+      origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:8080'],
+      credentials: true,
+    }), express.json(), expressMiddleware(server, {
       context: createContext,
     }));
 

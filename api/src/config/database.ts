@@ -2,7 +2,15 @@ import mongoose from 'mongoose';
 
 export const connectDB = async (): Promise<void> => {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/betpromo';
+    // Usar diretamente a URI do MongoDB do arquivo .env na raiz
+    const mongoUri = process.env.MONGODB_URI;
+    
+    if (!mongoUri) {
+      console.error('❌ MONGODB_URI não está definido no arquivo .env');
+      process.exit(1);
+    }
+    
+    console.log('🔄 Conectando ao MongoDB...');
     
     await mongoose.connect(mongoUri, {
       // Configurações recomendadas para produção

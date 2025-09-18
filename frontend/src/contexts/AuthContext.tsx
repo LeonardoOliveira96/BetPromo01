@@ -14,33 +14,31 @@ interface AuthContextType {
   isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// eslint-disable-next-line react-refresh/only-export-components
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  // Usuário autenticado automaticamente para testes
+  const [user, setUser] = useState<User | null>({
+    id: 'test-user-id',
+    email: 'teste@exemplo.com',
+    name: 'Usuário de Teste'
+  });
   const [isLoading, setIsLoading] = useState(false);
 
+  // Login automático para testes
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     
-    // Simular delay da autenticação
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simular validação básica (aceita qualquer email/senha para demo)
-    if (email && password) {
-      const mockUser: User = {
-        id: '1',
-        email,
-        name: email.split('@')[0]
-      };
+    try {
+      // Autenticação automática para testes
+      console.log('Login automático ativado para testes');
       
-      setUser(mockUser);
-      localStorage.setItem('betpromo_user', JSON.stringify(mockUser));
-    } else {
-      throw new Error('Email e senha são obrigatórios');
+      // Não faz nada, pois o usuário já está autenticado
+      // O usuário já está definido no estado inicial
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const logout = () => {
@@ -73,10 +71,4 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+// Hook movido para /hooks/use-auth.ts

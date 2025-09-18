@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { usePromotions } from '@/contexts/PromotionContext';
+import { usePromotions } from '@/hooks/use-promotions';
 import { useNavigate } from 'react-router-dom';
 import { Promotion, MeioComunicacao } from '@/types/promotion';
 import { cn } from '@/lib/utils';

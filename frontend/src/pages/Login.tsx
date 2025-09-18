@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, Lock } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/use-auth';
 import { toast } from '@/hooks/use-toast';
 
 const Login = () => {
@@ -112,18 +112,6 @@ const Login = () => {
                 )}
               </Button>
             </form>
-          </CardContent>
-        </Card>
-
-        {/* Demo Info */}
-        <Card className="bg-muted/50">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-2">
-              <p className="text-sm font-medium">Demo do Sistema</p>
-              <p className="text-xs text-muted-foreground">
-                Use qualquer email e senha para entrar
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

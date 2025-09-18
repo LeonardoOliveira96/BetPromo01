@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Edit, Trash2, Calendar, Clock, Target, Users, MessageSquare } from 'lucide-react';
-import { usePromotions } from '@/contexts/PromotionContext';
+import { usePromotions } from '@/hooks/use-promotions';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MeioComunicacao } from '@/types/promotion';

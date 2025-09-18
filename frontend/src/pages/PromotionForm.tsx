@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Loader2, Plus, X } from 'lucide-react';
-import { usePromotions } from '@/contexts/PromotionContext';
+import { usePromotions } from '@/hooks/use-promotions';
 import { PromotionFormData, TipoPromocao, TipoSaldo, MeioComunicacao, Segment } from '@/types/promotion';
 import { toast } from '@/hooks/use-toast';
 

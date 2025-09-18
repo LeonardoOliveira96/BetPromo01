@@ -314,14 +314,20 @@ const PromotionForm = () => {
                           disabled={isLoading}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.dataInicio ? format(new Date(formData.dataInicio), 'dd/MM/yyyy') : "Selecione uma data"}
+                          {formData.dataInicio ? format(new Date(formData.dataInicio + 'T12:00:00'), 'dd/MM/yyyy') : "Selecione uma data"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <DayPicker
                           mode="single"
-                          selected={formData.dataInicio ? new Date(formData.dataInicio) : undefined}
-                          onSelect={(date) => date && handleInputChange('dataInicio', format(date, 'yyyy-MM-dd'))}
+                          selected={formData.dataInicio ? new Date(formData.dataInicio + 'T12:00:00') : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              // Garantir que a data seja tratada no fuso horário local
+                              const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                              handleInputChange('dataInicio', format(localDate, 'yyyy-MM-dd'));
+                            }
+                          }}
                           initialFocus
                           locale={ptBR}
                         />
@@ -354,14 +360,20 @@ const PromotionForm = () => {
                           disabled={isLoading}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.dataFim ? format(new Date(formData.dataFim), 'dd/MM/yyyy') : "Selecione uma data"}
+                          {formData.dataFim ? format(new Date(formData.dataFim + 'T12:00:00'), 'dd/MM/yyyy') : "Selecione uma data"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <DayPicker
                           mode="single"
-                          selected={formData.dataFim ? new Date(formData.dataFim) : undefined}
-                          onSelect={(date) => date && handleInputChange('dataFim', format(date, 'yyyy-MM-dd'))}
+                          selected={formData.dataFim ? new Date(formData.dataFim + 'T12:00:00') : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              // Garantir que a data seja tratada no fuso horário local
+                              const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                              handleInputChange('dataFim', format(localDate, 'yyyy-MM-dd'));
+                            }
+                          }}
                           initialFocus
                           locale={ptBR}
                         />

@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
-import { config } from './config/database';
+import { testConnection } from './config/database';
 import { swaggerSpec, swaggerUiOptionsWithDarkTheme } from './config/swagger';
 import { errorHandler, notFoundHandler, requestLogger } from './middlewares/errorHandler';
 import routes from './routes';
@@ -61,7 +61,7 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📊 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Database: ${config.host}:${config.port}/${config.database}`);
+  console.log(`🔗 Database: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'betpromo_db'}`);
   console.log(`📚 Documentação: http://localhost:${PORT}/api-docs`);
   console.log(`📄 Swagger JSON: http://localhost:${PORT}/api-docs.json`);
 });

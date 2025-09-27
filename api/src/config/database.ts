@@ -1,50 +1,93 @@
-import mongoose from 'mongoose';
+import { Pool, PoolConfig } from 'pg';
+import dotenv from 'dotenv';
 
-export const connectDB = async (): Promise<void> => {
+dotenv.config();
+
+/**
+ * Configuração do pool de conexões PostgreSQL
+ * Utiliza variáveis de ambiente para configuração
+ */
+const poolConfig: PoolConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'betpromo_db',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  max: 20, // Máximo de conexões no pool
+  idleTimeoutMillis: 30000, // Tempo limite para conexões ociosas
+  connectionTimeoutMillis: 2000, // Tempo limite para estabelecer conexão
+};
+
+/**
+ * Pool de conexões global
+ */
+export const pool = new Pool(poolConfig);
+
+/**
+ * Evento de erro no pool de conexões
+ */
+pool.on('error', (err) => {
+  console.error('Erro inesperado no pool de conexões:', err);
+  process.exit(-1);
+});
+
+/**
+ * Função para testar a conexão com o banco
+ */
+export const testConnection = async (): Promise<boolean> => {
   try {
-    // Usar diretamente a URI do MongoDB do arquivo .env na raiz
-    const mongoUri = process.env.MONGODB_URI;
-    
-    if (!mongoUri) {
-      console.error('❌ MONGODB_URI não está definido no arquivo .env');
-      process.exit(1);
-    }
-    
-    console.log('🔄 Conectando ao MongoDB...');
-    
-    await mongoose.connect(mongoUri, {
-      // Configurações recomendadas para produção
-      maxPoolSize: 10, // Máximo de 10 conexões no pool
-      serverSelectionTimeoutMS: 5000, // Timeout de 5 segundos para seleção do servidor
-      socketTimeoutMS: 45000, // Timeout de 45 segundos para operações
-    });
-
-    console.log('✅ Conectado ao MongoDB com sucesso');
-    
-    // Event listeners para monitoramento da conexão
-    mongoose.connection.on('error', (error) => {
-      console.error('❌ Erro na conexão com MongoDB:', error);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️ Desconectado do MongoDB');
-    });
-
-    mongoose.connection.on('reconnected', () => {
-      console.log('🔄 Reconectado ao MongoDB');
-    });
-
+    const client = await pool.connect();
+    const result = await client.query('SELECT NOW()');
+    client.release();
+    console.log('✅ Conexão com PostgreSQL estabelecida:', result.rows[0].now);
+    return true;
   } catch (error) {
-    console.error('❌ Erro ao conectar ao MongoDB:', error);
-    process.exit(1);
+    console.error('❌ Erro ao conectar com PostgreSQL:', error);
+    return false;
   }
 };
 
-export const disconnectDB = async (): Promise<void> => {
+/**
+ * Função para executar queries com tratamento de erro
+ */
+export const query = async (text: string, params?: any[]) => {
+  const start = Date.now();
   try {
-    await mongoose.disconnect();
-    console.log('✅ Desconectado do MongoDB');
+    const result = await pool.query(text, params);
+    const duration = Date.now() - start;
+    console.log('Query executada:', { text, duration, rows: result.rowCount });
+    return result;
   } catch (error) {
-    console.error('❌ Erro ao desconectar do MongoDB:', error);
+    console.error('Erro na query:', { text, error });
+    throw error;
   }
 };
+
+/**
+ * Função para executar transações
+ */
+export const transaction = async (callback: (client: any) => Promise<any>) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Função para fechar o pool de conexões
+ */
+export const closePool = async (): Promise<void> => {
+  await pool.end();
+  console.log('Pool de conexões fechado');
+};
+
+// Testa a conexão na inicialização
+testConnection();

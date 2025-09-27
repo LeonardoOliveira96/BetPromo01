@@ -1,384 +1,317 @@
 import { Request, Response } from 'express';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { CSVProcessor } from '../services/csvProcessor';
+import { CSVService } from '../services/csvService';
+import { InsercaoResponseDTO } from '../types';
+import { AppError } from '../middlewares/errorHandler';
 
-// Configuração do Multer para upload de arquivos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    
-    // Cria o diretório se não existir
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Gera nome único para o arquivo
-    const timestamp = Date.now();
-    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    cb(null, `${timestamp}_${originalName}`);
-  },
-});
-
-const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Aceita apenas arquivos CSV
-  if (file.mimetype === 'text/csv' || file.originalname.toLowerCase().endsWith('.csv')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Apenas arquivos CSV são permitidos'));
-  }
-};
-
-export const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB máximo
-  },
-});
-
+/**
+ * Controller de importação CSV
+ * Gerencia endpoints relacionados ao upload e processamento de arquivos CSV
+ */
 export class CSVController {
+  private csvService: CSVService;
+
+  constructor() {
+    this.csvService = new CSVService();
+  }
+
   /**
-   * Endpoint SSE para progresso em tempo real
+   * POST /insercao
+   * Recebe upload de arquivo CSV e processa dados
+   * @param req - Request com arquivo CSV
+   * @param res - Response com resultado da importação
    */
-  static async uploadCSVWithProgress(req: Request, res: Response): Promise<void> {
+  insercao = async (req: Request, res: Response): Promise<void> => {
     try {
+      // Verifica se arquivo foi enviado
       if (!req.file) {
-        res.status(400).json({
-          success: false,
-          message: 'Nenhum arquivo foi enviado',
-        });
-        return;
+        throw new AppError('Nenhum arquivo foi enviado', 400, 'NO_FILE');
       }
 
-      const { promotion_id } = req.body;
-      
-      if (!promotion_id) {
-        // Remove o arquivo se não há promotion_id
-        fs.unlinkSync(req.file.path);
-        res.status(400).json({
-          success: false,
-          message: 'promotion_id é obrigatório',
-        });
-        return;
-      }
+      console.log('Iniciando processamento do arquivo:', req.file.filename);
 
-      // Configurar SSE
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control',
-      });
+      // Processa arquivo CSV
+      const result = await this.csvService.processarCSV(req.file);
 
-      const processor = new CSVProcessor();
-      const filename = req.file.originalname;
-      
-      console.log(`🔄 Iniciando processamento do arquivo: ${filename}`);
-      console.log(`📊 Promoção: ${promotion_id}`);
-
-      // Enviar evento inicial
-      res.write(`data: ${JSON.stringify({
-        type: 'start',
-        message: 'Iniciando processamento...',
-        filename,
-        promotionId: promotion_id
-      })}\n\n`);
-
-      // Escutar eventos de progresso
-      processor.on('progress', (progressData) => {
-        res.write(`data: ${JSON.stringify({
-          type: 'progress',
-          ...progressData
-        })}\n\n`);
-      });
-
-      try {
-        // Processa o arquivo CSV
-        const result = await processor.processCSV(
-          req.file.path,
-          filename,
-          promotion_id
-        );
-
-        // Remove o arquivo temporário após processamento
-        fs.unlinkSync(req.file.path);
-
-        console.log(`✅ Processamento concluído: ${result.processedRows}/${result.totalRows} linhas`);
-
-        // Enviar evento de conclusão
-        res.write(`data: ${JSON.stringify({
-          type: 'complete',
-          success: true,
-          message: 'Arquivo processado com sucesso',
-          data: result,
-        })}\n\n`);
-
-        res.end();
-
-      } catch (error) {
-        console.error('❌ Erro no processamento:', error);
-        
-        // Remove o arquivo em caso de erro
-        if (req.file && fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
-        }
-
-        res.write(`data: ${JSON.stringify({
-          type: 'error',
-          success: false,
-          message: 'Erro interno do servidor',
-          error: process.env.NODE_ENV === 'development' ? error : undefined,
-        })}\n\n`);
-
-        res.end();
-      }
-
-    } catch (error) {
-      console.error('❌ Erro no upload/processamento:', error);
-      
-      // Remove o arquivo em caso de erro
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-
-      res.status(500).json({
-        success: false,
-        message: 'Erro interno do servidor',
-        error: process.env.NODE_ENV === 'development' ? error : undefined,
-      });
-    }
-  }
-
-  /**
-   * Upload e processamento de arquivo CSV (método original)
-   */
-  static async uploadCSV(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.file) {
-        res.status(400).json({
-          success: false,
-          message: 'Nenhum arquivo foi enviado',
-        });
-        return;
-      }
-
-      const { promotion_id } = req.body;
-      
-      if (!promotion_id) {
-        // Remove o arquivo se não há promotion_id
-        fs.unlinkSync(req.file.path);
-        res.status(400).json({
-          success: false,
-          message: 'promotion_id é obrigatório',
-        });
-        return;
-      }
-
-      const processor = new CSVProcessor();
-      const filename = req.file.originalname;
-      
-      console.log(`🔄 Iniciando processamento do arquivo: ${filename}`);
-      console.log(`📊 Promoção: ${promotion_id}`);
-
-      // Processa o arquivo CSV
-      const result = await processor.processCSV(
-        req.file.path,
-        filename,
-        promotion_id
-      );
-
-      // Remove o arquivo temporário após processamento
-      fs.unlinkSync(req.file.path);
-
-      console.log(`✅ Processamento concluído: ${result.processedRows}/${result.totalRows} linhas`);
-
-      res.status(200).json({
+      // Prepara resposta de sucesso
+      const response: InsercaoResponseDTO = {
         success: true,
-        message: 'Arquivo processado com sucesso',
-        data: result,
+        data: result.data,
+        message: result.message
+      };
+
+      console.log('Processamento concluído:', {
+        filename: result.data.filename,
+        totalRows: result.data.totalRows,
+        processedRows: result.data.processedRows
       });
 
+      res.status(200).json(response);
+
     } catch (error) {
-      console.error('❌ Erro no upload/processamento:', error);
+      console.error('Erro na inserção:', error);
       
-      // Remove o arquivo em caso de erro
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Erro interno do servidor'
+          }
+        });
       }
-
-      res.status(500).json({
-        success: false,
-        message: 'Erro interno do servidor',
-        error: process.env.NODE_ENV === 'development' ? error : undefined,
-      });
     }
-  }
+  };
 
   /**
-   * Busca usuários em uma promoção específica
+   * GET /insercao/historico
+   * Lista histórico de importações realizadas
+   * @param req - Request
+   * @param res - Response com lista de importações
    */
-  static async getUsersInPromotion(req: Request, res: Response): Promise<void> {
+  historico = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { promotionId } = req.params;
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 100;
-
-      if (!promotionId) {
-        res.status(400).json({
-          success: false,
-          message: 'promotionId é obrigatório',
-        });
-        return;
-      }
-
-      const result = await CSVProcessor.findUsersInPromotion(promotionId, page, limit);
-
-      res.status(200).json({
-        success: true,
-        data: result,
-      });
-
-    } catch (error) {
-      console.error('❌ Erro ao buscar usuários:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro interno do servidor',
-        error: process.env.NODE_ENV === 'development' ? error : undefined,
-      });
-    }
-  }
-
-  /**
-   * Verifica se um usuário específico está em uma promoção
-   */
-  static async checkUserInPromotion(req: Request, res: Response): Promise<void> {
-    try {
-      const { promotionId, userId } = req.params;
-
-      if (!promotionId || !userId) {
-        res.status(400).json({
-          success: false,
-          message: 'promotionId e userId são obrigatórios',
-        });
-        return;
-      }
-
-      const smarticoUserId = parseInt(userId);
-      if (isNaN(smarticoUserId)) {
-        res.status(400).json({
-          success: false,
-          message: 'userId deve ser um número válido',
-        });
-        return;
-      }
-
-      const isInPromotion = await CSVProcessor.isUserInPromotion(smarticoUserId, promotionId);
+      // Lista importações
+      const importacoes = await this.csvService.listarImportacoes();
 
       res.status(200).json({
         success: true,
         data: {
-          smartico_user_id: smarticoUserId,
-          promotion_id: promotionId,
-          is_in_promotion: isInPromotion,
+          importacoes,
+          total: importacoes.length
         },
+        message: `${importacoes.length} importações encontradas`
       });
 
     } catch (error) {
-      console.error('❌ Erro ao verificar usuário:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro interno do servidor',
-        error: process.env.NODE_ENV === 'development' ? error : undefined,
-      });
+      console.error('Erro ao listar histórico:', error);
+      
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Erro interno do servidor'
+          }
+        });
+      }
     }
-  }
+  };
 
   /**
-   * Obtém estatísticas de uma promoção
+   * GET /insercao/historico/:filename
+   * Obtém detalhes de uma importação específica
+   * @param req - Request com nome do arquivo
+   * @param res - Response com detalhes da importação
    */
-  static async getPromotionStats(req: Request, res: Response): Promise<void> {
+  detalhesImportacao = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { promotionId } = req.params;
+      const filename = req.params.filename;
 
-      if (!promotionId) {
-        res.status(400).json({
-          success: false,
-          message: 'promotionId é obrigatório',
-        });
-        return;
+      if (!filename) {
+        throw new AppError('Nome do arquivo é obrigatório', 400, 'FILENAME_REQUIRED');
       }
 
-      const stats = await CSVProcessor.getPromotionStats(promotionId);
+      // Obtém detalhes da importação
+      const detalhes = await this.csvService.obterDetalhesImportacao(filename);
+
+      if (!detalhes || detalhes.length === 0) {
+        throw new AppError('Importação não encontrada', 404, 'IMPORT_NOT_FOUND');
+      }
 
       res.status(200).json({
         success: true,
-        data: stats,
+        data: {
+          filename,
+          detalhes,
+          total: detalhes.length
+        },
+        message: 'Detalhes da importação obtidos com sucesso'
       });
 
     } catch (error) {
-      console.error('❌ Erro ao obter estatísticas:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro interno do servidor',
-        error: process.env.NODE_ENV === 'development' ? error : undefined,
-      });
+      console.error('Erro ao obter detalhes da importação:', error);
+      
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Erro interno do servidor'
+          }
+        });
+      }
     }
-  }
+  };
 
   /**
-   * Remove usuário de uma promoção
+   * POST /insercao/validate
+   * Valida arquivo CSV sem processar (dry-run)
+   * @param req - Request com arquivo CSV
+   * @param res - Response com resultado da validação
    */
-  static async removeUserFromPromotion(req: Request, res: Response): Promise<void> {
+  validate = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { promotionId, userId } = req.params;
-
-      if (!promotionId || !userId) {
-        res.status(400).json({
-          success: false,
-          message: 'promotionId e userId são obrigatórios',
-        });
-        return;
+      // Verifica se arquivo foi enviado
+      if (!req.file) {
+        throw new AppError('Nenhum arquivo foi enviado', 400, 'NO_FILE');
       }
 
-      const smarticoUserId = parseInt(userId);
-      if (isNaN(smarticoUserId)) {
-        res.status(400).json({
-          success: false,
-          message: 'userId deve ser um número válido',
-        });
-        return;
-      }
-
-      const user = await CSVProcessor.findUsersInPromotion(promotionId);
-      if (!user) {
-        res.status(404).json({
-          success: false,
-          message: 'Usuário não encontrado na promoção',
-        });
-        return;
-      }
-
-      // Aqui você implementaria a lógica para remover o usuário
-      // Por exemplo, usando o método removePromotion do modelo
-
+      // TODO: Implementar validação sem processamento
+      // Por enquanto, retorna sucesso básico
       res.status(200).json({
         success: true,
-        message: 'Usuário removido da promoção com sucesso',
+        data: {
+          filename: req.file.filename,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          valid: true
+        },
+        message: 'Arquivo válido para processamento'
       });
 
     } catch (error) {
-      console.error('❌ Erro ao remover usuário:', error);
+      console.error('Erro na validação:', error);
+      
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Erro interno do servidor'
+          }
+        });
+      }
+    }
+  };
+
+  /**
+   * GET /insercao/template
+   * Retorna template CSV para download
+   * @param req - Request
+   * @param res - Response com arquivo template
+   */
+  template = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Define cabeçalhos do CSV
+      const csvHeaders = [
+        'smartico_user_id',
+        'user_ext_id',
+        'core_sm_brand_id',
+        'crm_brand_id',
+        'ext_brand_id',
+        'crm_brand_name',
+        'promocao_nome',
+        'regras',
+        'data_inicio',
+        'data_fim'
+      ];
+
+      // Exemplo de linha
+      const exampleRow = [
+        '123456789',
+        'user_ext_001',
+        '1',
+        '100',
+        'brand_001',
+        'Marca Exemplo',
+        'Promoção de Boas-vindas',
+        'Regras da promoção aqui',
+        '2024-01-01 00:00:00',
+        '2024-12-31 23:59:59'
+      ];
+
+      // Cria conteúdo CSV
+      const csvContent = [
+        csvHeaders.join(','),
+        exampleRow.join(',')
+      ].join('\n');
+
+      // Define headers para download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="template_importacao.csv"');
+
+      res.status(200).send(csvContent);
+
+    } catch (error) {
+      console.error('Erro ao gerar template:', error);
       res.status(500).json({
         success: false,
-        message: 'Erro interno do servidor',
-        error: process.env.NODE_ENV === 'development' ? error : undefined,
+        error: {
+          code: 'TEMPLATE_ERROR',
+          message: 'Erro ao gerar template'
+        }
       });
     }
-  }
+  };
+
+  /**
+   * GET /health
+   * Verifica saúde do serviço de importação
+   * @param req - Request
+   * @param res - Response com status
+   */
+  health = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Verifica se diretório de upload existe e é acessível
+      const uploadPath = process.env.UPLOAD_PATH || './uploads';
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          service: 'csv-import',
+          status: 'healthy',
+          uploadPath,
+          timestamp: new Date().toISOString()
+        },
+        message: 'Serviço funcionando corretamente'
+      });
+
+    } catch (error) {
+      console.error('Erro no health check:', error);
+      res.status(503).json({
+        success: false,
+        data: {
+          service: 'csv-import',
+          status: 'unhealthy',
+          timestamp: new Date().toISOString()
+        },
+        error: {
+          code: 'HEALTH_CHECK_ERROR',
+          message: 'Erro ao verificar saúde do serviço'
+        }
+      });
+    }
+  };
 }

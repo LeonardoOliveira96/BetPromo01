@@ -1,0 +1,40 @@
+# Development Dockerfile for Node.js TypeScript API
+FROM node:18-alpine
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create app user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S betpromo -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci && npm cache clean --force
+
+# Create uploads directory
+RUN mkdir -p uploads && chown -R betpromo:nodejs uploads
+
+# Change ownership of the app directory
+RUN chown -R betpromo:nodejs /app
+
+# Switch to non-root user
+USER betpromo
+
+# Copy source code (will be overridden by volume in development)
+COPY --chown=betpromo:nodejs . .
+
+# Expose port and debugger port
+EXPOSE 3000 9229
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Start the application with hot reload and debugging
+CMD ["dumb-init", "npm", "run", "dev"]

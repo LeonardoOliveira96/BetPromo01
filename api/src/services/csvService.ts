@@ -111,11 +111,21 @@ export class CSVService {
       const results: CSVRowData[] = [];
       const errors: string[] = [];
       let lineNumber = 1;
+      let processedLines = 0;
+
+      console.log(`📖 Iniciando leitura do arquivo CSV: ${path.basename(filePath)}`);
 
       fs.createReadStream(filePath)
         .pipe(csv())
         .on('data', (data) => {
           lineNumber++;
+          processedLines++;
+          
+          // Log de progresso a cada 50.000 linhas
+          if (processedLines % 50000 === 0) {
+            console.log(`📊 Lidas ${processedLines.toLocaleString()} linhas...`);
+          }
+          
           try {
             // Se não tem promoção, adiciona uma padrão baseada na marca
             if (!data.promocao_nome) {
@@ -144,6 +154,8 @@ export class CSVService {
           }
         })
         .on('end', () => {
+          console.log(`✅ Leitura concluída: ${processedLines.toLocaleString()} linhas processadas`);
+          
           if (errors.length > 0) {
             reject(new AppError(`Erros de validação no CSV: ${errors.join(', ')}`, 400, 'CSV_VALIDATION_ERROR'));
           } else {
@@ -203,28 +215,59 @@ export class CSVService {
    * @param filename - Nome do arquivo
    */
   private async insertToStaging(client: any, csvData: CSVRowData[], filename: string): Promise<void> {
-    // Usa INSERT direto para cada linha (mais confiável que COPY FROM STDIN)
-    for (const row of csvData) {
-      await client.query(`
+    const batchSize = 5000; // Processa 5000 registros por vez para máxima performance
+    const totalRows = csvData.length;
+    
+    console.log(`🚀 Iniciando inserção em lote de ${totalRows} registros (${batchSize} por lote)`);
+    
+    for (let i = 0; i < totalRows; i += batchSize) {
+      const batch = csvData.slice(i, i + batchSize);
+      const currentBatch = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(totalRows / batchSize);
+      
+      console.log(`📦 Processando lote ${currentBatch}/${totalBatches} (${batch.length} registros)`);
+      
+      // Constrói query com múltiplos VALUES
+      const values: any[] = [];
+      const placeholders: string[] = [];
+      
+      batch.forEach((row, index) => {
+        const baseIndex = index * 11;
+        placeholders.push(`($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5}, $${baseIndex + 6}, $${baseIndex + 7}, $${baseIndex + 8}, $${baseIndex + 9}, $${baseIndex + 10}, $${baseIndex + 11})`);
+        
+        values.push(
+          row.smartico_user_id,
+          row.user_ext_id,
+          row.core_sm_brand_id,
+          row.crm_brand_id,
+          row.ext_brand_id,
+          row.crm_brand_name,
+          row.promocao_nome,
+          row.regras,
+          row.data_inicio,
+          row.data_fim,
+          filename
+        );
+      });
+      
+      const query = `
         INSERT INTO staging_import (
           smartico_user_id, user_ext_id, core_sm_brand_id, crm_brand_id,
           ext_brand_id, crm_brand_name, promocao_nome, regras,
           data_inicio, data_fim, filename
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      `, [
-        row.smartico_user_id,
-        row.user_ext_id,
-        row.core_sm_brand_id,
-        row.crm_brand_id,
-        row.ext_brand_id,
-        row.crm_brand_name,
-        row.promocao_nome,
-        row.regras,
-        row.data_inicio,
-        row.data_fim,
-        filename
-      ]);
+        ) VALUES ${placeholders.join(', ')}
+      `;
+      
+      await client.query(query, values);
+      
+      // Log de progresso a cada 10 lotes
+      if (currentBatch % 10 === 0 || currentBatch === totalBatches) {
+        const progress = ((i + batch.length) / totalRows * 100).toFixed(1);
+        console.log(`✅ Progresso: ${progress}% (${i + batch.length}/${totalRows} registros)`);
+      }
     }
+    
+    console.log(`🎉 Inserção concluída: ${totalRows} registros inseridos com sucesso!`);
   }
 
   /**

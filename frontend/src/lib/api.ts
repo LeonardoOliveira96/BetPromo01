@@ -14,6 +14,7 @@ export interface LoginResponse {
       id: number;
       email: string;
       name: string;
+      role: string;
     };
   };
   message?: string;
@@ -23,6 +24,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  role: string;
 }
 
 class ApiService {

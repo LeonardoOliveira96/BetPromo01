@@ -19,7 +19,7 @@ export class AuthService {
 
       // Busca o usuário no banco de dados
       const userQuery = `
-        SELECT id, email, password_hash, name, is_active
+        SELECT id, email, password_hash, name, role, is_active
         FROM admin_users 
         WHERE email = $1 AND is_active = true
       `;
@@ -49,7 +49,8 @@ export class AuthService {
       const token = generateToken({
         userId: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       });
 
       // Atualiza último login (opcional)
@@ -64,7 +65,8 @@ export class AuthService {
         user: {
           id: user.id,
           email: user.email,
-          name: user.name
+          name: user.name,
+          role: user.role
         },
         message: 'Login realizado com sucesso'
       };
@@ -83,7 +85,7 @@ export class AuthService {
   async getUserById(userId: number): Promise<Omit<AdminUser, 'password_hash'> | null> {
     try {
       const userQuery = `
-        SELECT id, email, name, created_at, updated_at, is_active
+        SELECT id, email, name, role, created_at, updated_at, is_active
         FROM admin_users 
         WHERE id = $1 AND is_active = true
       `;
@@ -109,7 +111,7 @@ export class AuthService {
   async getUserByEmail(email: string): Promise<Omit<AdminUser, 'password_hash'> | null> {
     try {
       const userQuery = `
-        SELECT id, email, name, created_at, updated_at, is_active
+        SELECT id, email, name, role, created_at, updated_at, is_active
         FROM admin_users 
         WHERE email = $1 AND is_active = true
       `;
@@ -148,7 +150,7 @@ export class AuthService {
   async getAllUsers(): Promise<Omit<AdminUser, 'password_hash'>[]> {
     try {
       const usersQuery = `
-        SELECT id, email, name, created_at, updated_at, is_active
+        SELECT id, email, name, role, created_at, updated_at, is_active
         FROM admin_users 
         ORDER BY created_at DESC
       `;

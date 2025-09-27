@@ -13,6 +13,7 @@ export interface AdminUser {
   email: string;
   password_hash: string;
   name: string;
+  role: string;
   created_at: Date;
   updated_at: Date;
   is_active: boolean;
@@ -140,6 +141,7 @@ export interface LoginResponseDTO {
     id: number;
     email: string;
     name: string;
+    role: string;
   };
   message?: string;
 }
@@ -246,6 +248,7 @@ export interface JWTPayload {
   userId: number;
   email: string;
   name: string;
+  role: string;
   iat?: number;
   exp?: number;
 }

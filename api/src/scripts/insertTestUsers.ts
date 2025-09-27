@@ -31,6 +31,13 @@ const testUsers: TestUser[] = [
 async function insertTestUsers(): Promise<void> {
   try {
     console.log('🔄 Iniciando inserção de usuários de teste...');
+    
+    // Primeiro, adicionar a coluna role se não existir
+    console.log('Adicionando coluna role se não existir...');
+    await query(`
+      ALTER TABLE admin_users 
+      ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user'
+    `);
 
     for (const user of testUsers) {
       // Gera hash da senha
@@ -47,16 +54,16 @@ async function insertTestUsers(): Promise<void> {
         
         // Atualiza a senha do usuário existente
         await query(
-          'UPDATE admin_users SET password_hash = $1, name = $2, updated_at = NOW() WHERE email = $3',
-          [passwordHash, user.name, user.email]
+          'UPDATE admin_users SET password_hash = $1, name = $2, role = $3, updated_at = NOW() WHERE email = $4',
+          [passwordHash, user.name, user.role, user.email]
         );
         
         console.log(`✅ Usuário ${user.email} atualizado com sucesso!`);
       } else {
         // Insere novo usuário
         await query(
-          'INSERT INTO admin_users (email, password_hash, name, is_active, created_at, updated_at) VALUES ($1, $2, $3, true, NOW(), NOW())',
-          [user.email, passwordHash, user.name]
+          'INSERT INTO admin_users (email, password_hash, name, role, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())',
+          [user.email, passwordHash, user.name, user.role]
         );
         
         console.log(`✅ Usuário ${user.email} criado com sucesso!`);

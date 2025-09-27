@@ -13,6 +13,8 @@ import { typeDefs } from './schema/typeDefs';
 import { resolvers } from './resolvers';
 import { createContext } from './middleware/auth';
 import { initializeAgents } from './agents';
+import csvRoutes from './routes/csvRoutes';
+import searchRoutes from './routes/searchRoutes';
 
 // Carrega variáveis de ambiente
 dotenv.config();
@@ -74,6 +76,12 @@ async function startServer() {
     });
 
     await server.start();
+    
+    // Rotas REST para CSV
+    app.use('/api/csv', csvRoutes);
+    
+    // Rotas REST para busca
+    app.use('/api/search', searchRoutes);
     
     // Aplica o middleware do Apollo
     app.use('/graphql', cors<cors.CorsRequest>({

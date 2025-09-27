@@ -3,6 +3,7 @@ export { User, IUser } from './User';
 export { Promotion, IPromotion } from './Promotion';
 export { PromotionUsage, IPromotionUsage } from './PromotionUsage';
 export { AgentTask, IAgentTask } from './AgentTask';
+export { PromotionUser, IPromotionUser } from './PromotionUser';
 
 // Função para inicializar todos os modelos
 export const initializeModels = () => {

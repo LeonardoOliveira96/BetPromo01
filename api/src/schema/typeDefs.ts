@@ -15,9 +15,9 @@ export const typeDefs = gql`
   }
 
   enum UserRole {
-    ADMIN
-    MANAGER
-    USER
+    admin
+    manager
+    user
   }
 
   type Promotion {
@@ -227,7 +227,7 @@ export const typeDefs = gql`
     name: String!
     email: String!
     password: String!
-    role: UserRole = USER
+    role: UserRole = user
   }
 
   input UpdateProfileInput {

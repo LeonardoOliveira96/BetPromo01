@@ -92,7 +92,7 @@ export const PromotionProvider: React.FC<{ children: ReactNode }> = ({ children 
           currency: 'BRL'
         },
         targetAudience: {
-          userRoles: ['USER'],
+          userRoles: ['user'],
           countries: ['BR'],
           excludedUsers: []
         },

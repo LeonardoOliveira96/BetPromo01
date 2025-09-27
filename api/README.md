@@ -188,7 +188,7 @@ mutation {
     endDate: "2024-12-31"
     conditions: { minDeposit: 50, newUsersOnly: true }
     reward: { type: PERCENTAGE, value: 100, maxValue: 500, currency: "BRL" }
-    targetAudience: { userRoles: [USER] }
+    targetAudience: { userRoles: [user] }
   }) {
     id title isActive
   }

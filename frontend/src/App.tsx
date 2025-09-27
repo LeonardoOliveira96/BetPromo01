@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { PromotionProvider } from "@/contexts/PromotionContext";
 
 import Layout from "@/components/Layout/Layout";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import PromotionForm from "@/pages/PromotionForm";
@@ -27,10 +28,26 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<Login />} />
-                <Route path="/" element={<Layout><Dashboard /></Layout>} />
-                <Route path="/criar-promocao" element={<Layout><PromotionForm /></Layout>} />
-                <Route path="/editar-promocao/:id" element={<Layout><PromotionForm /></Layout>} />
-                <Route path="/promocao/:id" element={<Layout><PromotionDetail /></Layout>} />
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <Layout><Dashboard /></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/criar-promocao" element={
+                  <ProtectedRoute>
+                    <Layout><PromotionForm /></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/editar-promocao/:id" element={
+                  <ProtectedRoute>
+                    <Layout><PromotionForm /></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/promocao/:id" element={
+                  <ProtectedRoute>
+                    <Layout><PromotionDetail /></Layout>
+                  </ProtectedRoute>
+                } />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

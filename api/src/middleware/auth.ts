@@ -30,7 +30,6 @@ export const createContext = async ({ req }: { req: any }): Promise<Context> => 
       }
     } catch (error) {
       // Token inválido ou expirado - não faz nada, deixa context.user como undefined
-      console.log('Token inválido:', error);
     }
   }
 

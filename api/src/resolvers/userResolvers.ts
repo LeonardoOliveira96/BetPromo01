@@ -86,6 +86,7 @@ export const userResolvers = {
 
         // Verifica a senha
         const isValidPassword = await user.comparePassword(password);
+        
         if (!isValidPassword) {
           throw new GraphQLError('Credenciais inválidas', {
             extensions: { code: 'UNAUTHENTICATED' }
@@ -109,7 +110,7 @@ export const userResolvers = {
         if (error instanceof GraphQLError) {
           throw error;
         }
-        throw new Error('Erro interno do servidor');
+        throw new Error(`Erro interno do servidor: ${(error as Error).message}`);
       }
     },
 

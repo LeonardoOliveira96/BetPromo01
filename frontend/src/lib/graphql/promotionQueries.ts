@@ -38,7 +38,7 @@ export const CREATE_PROMOTION = gql`
 `;
 
 export const GET_PROMOTIONS = gql`
-  query GetPromotions($limit: Int, $offset: Int, $isActive: Boolean, $type: String) {
+  query GetPromotions($limit: Int, $offset: Int, $isActive: Boolean, $type: PromotionType) {
     promotions(limit: $limit, offset: $offset, isActive: $isActive, type: $type) {
       id
       title

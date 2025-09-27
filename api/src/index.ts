@@ -1,10 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+// @ts-ignore
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
-import { testConnection } from './config/database';
+
 import { swaggerSpec, swaggerUiOptionsWithDarkTheme } from './config/swagger';
 import { errorHandler, notFoundHandler, requestLogger } from './middlewares/errorHandler';
 import routes from './routes';

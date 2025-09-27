@@ -1,20 +1,11 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/use-auth';
-import Header from './Header';
+import { ReactNode } from 'react';
+import { Header } from './Header';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-
-  // Verificação de autenticação temporariamente desativada para testes
-  // if (!isAuthenticated) {
-  //   return <Navigate to="/login" replace />;
-  // }
-
+export const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -24,5 +15,3 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     </div>
   );
 };
-
-export default Layout;

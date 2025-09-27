@@ -2,61 +2,62 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApolloProvider } from "@apollo/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { PromotionProvider } from "@/contexts/PromotionContext";
-
-import Layout from "@/components/Layout/Layout";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import PromotionForm from "@/pages/PromotionForm";
-import PromotionDetail from "@/pages/PromotionDetail";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { Layout } from "@/components/layout/Layout";
+import { AttendantDashboard } from "@/components/attendant/AttendantDashboard";
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
+import { useAuth } from "@/hooks/useAuth";
+import { apolloClient } from "@/lib/apollo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const AppContent = () => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginForm />;
+  }
+
+  return (
+    <Layout>
+      {user.role === 'admin' ? <AdminDashboard /> : <AttendantDashboard />}
+    </Layout>
+  );
+};
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <PromotionProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <Layout><Dashboard /></Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/criar-promocao" element={
-                  <ProtectedRoute>
-                    <Layout><PromotionForm /></Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/editar-promocao/:id" element={
-                  <ProtectedRoute>
-                    <Layout><PromotionForm /></Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/promocao/:id" element={
-                  <ProtectedRoute>
-                    <Layout><PromotionDetail /></Layout>
-                  </ProtectedRoute>
-                } />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </PromotionProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <ApolloProvider client={apolloClient}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<AppContent />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ApolloProvider>
 );
 
 export default App;

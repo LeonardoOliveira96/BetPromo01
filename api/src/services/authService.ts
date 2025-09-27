@@ -177,7 +177,7 @@ export class AuthService {
       `;
       
       const result = await query(updateQuery, [userId]);
-      return result.rowCount > 0;
+      return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
       console.error('Erro ao desativar usuário:', error);
       throw new AppError('Erro interno do servidor', 500, 'USER_DEACTIVATE_ERROR');
@@ -198,7 +198,7 @@ export class AuthService {
       `;
       
       const result = await query(updateQuery, [userId]);
-      return result.rowCount > 0;
+      return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
       console.error('Erro ao reativar usuário:', error);
       throw new AppError('Erro interno do servidor', 500, 'USER_REACTIVATE_ERROR');

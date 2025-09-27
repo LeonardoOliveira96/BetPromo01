@@ -117,11 +117,30 @@ export class CSVService {
         .on('data', (data) => {
           lineNumber++;
           try {
+            // Se não tem promoção, adiciona uma padrão baseada na marca
+            if (!data.promocao_nome) {
+              const brandName = data.crm_brand_name || data.ext_brand_id || 'Marca';
+              data.promocao_nome = `Promoção Padrão ${brandName}`;
+              data.regras = data.regras || 'Promoção padrão para usuários da marca';
+              data.data_inicio = data.data_inicio || new Date().toISOString();
+              data.data_fim = data.data_fim || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 ano
+            }
+            
             // Valida cada linha usando Zod
             const validatedData = validateCSVRow(data);
-            results.push(validatedData);
+
+            // Garante que promocao_nome é string (nunca undefined)
+            if (!validatedData.promocao_nome) {
+              validatedData.promocao_nome = '';
+            }
+
+            results.push(validatedData as CSVRowData);
           } catch (error) {
-            errors.push(`Linha ${lineNumber}: ${error.message}`);
+            if (error instanceof Error) {
+              errors.push(`Linha ${lineNumber}: ${error.message}`);
+            } else {
+              errors.push(`Linha ${lineNumber}: Erro desconhecido`);
+            }
           }
         })
         .on('end', () => {
@@ -184,63 +203,27 @@ export class CSVService {
    * @param filename - Nome do arquivo
    */
   private async insertToStaging(client: any, csvData: CSVRowData[], filename: string): Promise<void> {
-    // Cria arquivo temporário para COPY
-    const tempFile = path.join(this.uploadDir, `temp_${filename}.csv`);
-    
-    try {
-      // Prepara dados para COPY
-      const copyData = csvData.map(row => [
-        row.smartico_user_id,
-        row.user_ext_id || null,
-        row.core_sm_brand_id || null,
-        row.crm_brand_id || null,
-        row.ext_brand_id || null,
-        row.crm_brand_name || null,
-        row.promocao_nome,
-        row.regras || null,
-        row.data_inicio || null,
-        row.data_fim || null,
-        filename
-      ].join('\t')).join('\n');
-
-      // Escreve arquivo temporário
-      fs.writeFileSync(tempFile, copyData);
-
-      // Executa COPY
+    // Usa INSERT direto para cada linha (mais confiável que COPY FROM STDIN)
+    for (const row of csvData) {
       await client.query(`
-        COPY staging_import (
+        INSERT INTO staging_import (
           smartico_user_id, user_ext_id, core_sm_brand_id, crm_brand_id,
           ext_brand_id, crm_brand_name, promocao_nome, regras,
           data_inicio, data_fim, filename
-        ) FROM STDIN WITH (FORMAT text, DELIMITER E'\\t', NULL '')
-      `);
-
-      // Alternativa usando INSERT (caso COPY não funcione)
-      for (const row of csvData) {
-        await client.query(`
-          INSERT INTO staging_import (
-            smartico_user_id, user_ext_id, core_sm_brand_id, crm_brand_id,
-            ext_brand_id, crm_brand_name, promocao_nome, regras,
-            data_inicio, data_fim, filename
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        `, [
-          row.smartico_user_id,
-          row.user_ext_id,
-          row.core_sm_brand_id,
-          row.crm_brand_id,
-          row.ext_brand_id,
-          row.crm_brand_name,
-          row.promocao_nome,
-          row.regras,
-          row.data_inicio,
-          row.data_fim,
-          filename
-        ]);
-      }
-
-    } finally {
-      // Remove arquivo temporário
-      this.cleanupFile(tempFile);
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [
+        row.smartico_user_id,
+        row.user_ext_id,
+        row.core_sm_brand_id,
+        row.crm_brand_id,
+        row.ext_brand_id,
+        row.crm_brand_name,
+        row.promocao_nome,
+        row.regras,
+        row.data_inicio,
+        row.data_fim,
+        filename
+      ]);
     }
   }
 

@@ -17,11 +17,10 @@ interface UploadResult {
     totalRows: number;
     processedRows: number;
     newUsers: number;
-    updatedUsers: number;
+    newPromotions: number;
+    newUserPromotions: number;
     errors: string[];
-    processingTime: number;
     filename: string;
-    promotionId: string;
   };
 }
 
@@ -33,7 +32,6 @@ interface LogEntry {
 
 export const CSVUpload = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [promotionId, setPromotionId] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [result, setResult] = useState<UploadResult | null>(null);
@@ -79,11 +77,11 @@ export const CSVUpload = () => {
   };
 
   const handleUpload = async () => {
-    if (!file || !promotionId.trim()) {
-      addLog('error', 'Arquivo e ID da promoção são obrigatórios');
+    if (!file) {
+      addLog('error', 'Arquivo é obrigatório');
       toast({
         title: "Erro",
-        description: "Por favor, selecione um arquivo e informe o ID da promoção",
+        description: "Por favor, selecione um arquivo CSV",
         variant: "destructive"
       });
       return;
@@ -94,124 +92,64 @@ export const CSVUpload = () => {
     setResult(null);
 
     addLog('info', `Iniciando upload do arquivo: ${file.name}`);
-    addLog('info', `Promoção: ${promotionId}`);
 
     const formData = new FormData();
-    formData.append('csv_file', file);
-    formData.append('promotion_id', promotionId.trim());
+    formData.append('file', file);
 
     try {
       addLog('info', 'Enviando arquivo para o servidor...');
+      setUploadProgress(10);
 
       // Usar fetch para enviar o arquivo
-      const response = await fetch('http://localhost:4000/api/csv/upload-progress', {
+      const response = await fetch('http://localhost:3000/api/insercao', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: formData,
       });
 
+      setUploadProgress(50);
+      addLog('info', 'Processando arquivo no servidor...');
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
       }
 
-      // Verificar se é SSE
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('text/event-stream')) {
-        // Processar SSE
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
+      const data: UploadResult = await response.json();
+      setUploadProgress(100);
 
-        if (!reader) {
-          throw new Error('Não foi possível ler a resposta do servidor');
-        }
+      if (data.success) {
+        setResult(data);
+        addLog('success', 'Upload concluído com sucesso!');
 
-        let buffer = '';
+        if (data.data) {
+          addLog('info', `Total de linhas: ${data.data.totalRows.toLocaleString()}`);
+          addLog('info', `Linhas processadas: ${data.data.processedRows.toLocaleString()}`);
+          addLog('info', `Novos usuários: ${data.data.newUsers.toLocaleString()}`);
+          addLog('info', `Novas promoções: ${data.data.newPromotions || 0}`);
+          addLog('info', `Novos vínculos: ${data.data.newUserPromotions || 0}`);
 
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-
-                switch (data.type) {
-                  case 'start':
-                    addLog('info', data.message);
-                    setUploadProgress(5);
-                    break;
-
-                  case 'progress': {
-                    const percentage = Math.min(95, Math.max(5, data.percentage || 0));
-                    setUploadProgress(percentage);
-
-                    if (data.totalRows) {
-                      addLog('info', `Progresso: ${data.processedRows?.toLocaleString() || 0}/${data.totalRows.toLocaleString()} linhas (${percentage.toFixed(1)}%)`);
-                    }
-                    break;
-                  }
-
-                  case 'complete':
-                    setUploadProgress(100);
-                    setResult(data);
-                    addLog('success', 'Upload concluído com sucesso!');
-
-                    if (data.data) {
-                      addLog('info', `Total de linhas: ${data.data.totalRows.toLocaleString()}`);
-                      addLog('info', `Linhas processadas: ${data.data.processedRows.toLocaleString()}`);
-                      addLog('info', `Novos usuários: ${data.data.newUsers.toLocaleString()}`);
-                      addLog('info', `Usuários atualizados: ${data.data.updatedUsers.toLocaleString()}`);
-                      addLog('info', `Tempo de processamento: ${(data.data.processingTime / 1000).toFixed(2)}s`);
-
-                      if (data.data.errors.length > 0) {
-                        addLog('warning', `${data.data.errors.length} erros encontrados`);
-                        data.data.errors.forEach((error, index) => {
-                          if (index < 5) { // Mostrar apenas os primeiros 5 erros
-                            addLog('error', error);
-                          }
-                        });
-                        if (data.data.errors.length > 5) {
-                          addLog('warning', `... e mais ${data.data.errors.length - 5} erros`);
-                        }
-                      }
-                    }
-
-                    toast({
-                      title: "Sucesso!",
-                      description: `Arquivo processado: ${data.data?.processedRows.toLocaleString()} linhas`,
-                    });
-                    break;
-
-                  case 'error':
-                    throw new Error(data.message || 'Erro no processamento');
-                }
-              } catch (parseError) {
-                console.error('Erro ao parsear dados SSE:', parseError);
+          if (data.data.errors && data.data.errors.length > 0) {
+            addLog('warning', `${data.data.errors.length} erros encontrados`);
+            data.data.errors.forEach((error, index) => {
+              if (index < 5) { // Mostrar apenas os primeiros 5 erros
+                addLog('error', error);
               }
+            });
+            if (data.data.errors.length > 5) {
+              addLog('warning', `... e mais ${data.data.errors.length - 5} erros`);
             }
           }
         }
+
+        toast({
+          title: "Sucesso!",
+          description: `Arquivo processado: ${data.data?.processedRows.toLocaleString()} linhas`,
+        });
       } else {
-        // Fallback para resposta JSON normal
-        const data: UploadResult = await response.json();
-
-        if (data.success) {
-          setResult(data);
-          setUploadProgress(100);
-          addLog('success', 'Upload concluído com sucesso!');
-
-          toast({
-            title: "Sucesso!",
-            description: `Arquivo processado: ${data.data?.processedRows.toLocaleString()} linhas`,
-          });
-        } else {
-          throw new Error(data.message || 'Erro no upload');
-        }
+        throw new Error(data.message || 'Erro no upload');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
@@ -234,7 +172,6 @@ export const CSVUpload = () => {
 
   const resetForm = () => {
     setFile(null);
-    setPromotionId('');
     setUploadProgress(0);
     setResult(null);
     setLogs([]);
@@ -288,21 +225,10 @@ export const CSVUpload = () => {
               Upload de Arquivo
             </CardTitle>
             <CardDescription>
-              Selecione um arquivo CSV e informe o ID da promoção
+              Selecione um arquivo CSV para importar usuários e promoções
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="promotion-id">ID da Promoção</Label>
-              <Input
-                id="promotion-id"
-                placeholder="Ex: promo_2024_09_27"
-                value={promotionId}
-                onChange={(e) => setPromotionId(e.target.value)}
-                disabled={isUploading}
-              />
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="csv-file">Arquivo CSV</Label>
               <Input
@@ -333,7 +259,7 @@ export const CSVUpload = () => {
             <div className="flex gap-2">
               <Button
                 onClick={handleUpload}
-                disabled={!file || !promotionId.trim() || isUploading}
+                disabled={!file || isUploading}
                 className="flex-1"
               >
                 {isUploading ? (
@@ -427,7 +353,7 @@ export const CSVUpload = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">
                   {result.data.totalRows.toLocaleString()}
@@ -448,18 +374,22 @@ export const CSVUpload = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">
-                  {result.data.updatedUsers.toLocaleString()}
+                  {result.data.newPromotions.toLocaleString()}
                 </div>
-                <div className="text-sm text-muted-foreground">Atualizados</div>
+                <div className="text-sm text-muted-foreground">Novas Promoções</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">
+                  {result.data.newUserPromotions.toLocaleString()}
+                </div>
+                <div className="text-sm text-muted-foreground">Novos Vínculos</div>
               </div>
             </div>
 
             <Separator className="my-4" />
 
-            <div className="flex justify-between items-center text-sm text-muted-foreground">
+            <div className="flex justify-center items-center text-sm text-muted-foreground">
               <span>Arquivo: {result.data.filename}</span>
-              <span>Tempo: {(result.data.processingTime / 1000).toFixed(2)}s</span>
-              <span>Promoção: {result.data.promotionId}</span>
             </div>
           </CardContent>
         </Card>

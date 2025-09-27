@@ -106,7 +106,10 @@ export const csvRowSchema = z.object({
   promocao_nome: z
     .string()
     .min(1, 'Nome da promoção é obrigatório')
-    .max(255, 'Nome da promoção deve ter no máximo 255 caracteres'),
+    .max(255, 'Nome da promoção deve ter no máximo 255 caracteres')
+    .optional()
+    .nullable()
+    .transform((val) => val || undefined),
   regras: z
     .string()
     .optional()

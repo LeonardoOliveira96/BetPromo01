@@ -1,8 +1,8 @@
 export interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'user';
+  role?: 'admin' | 'manager' | 'user';
 }
 
 export interface LoginResponse {
@@ -13,7 +13,7 @@ export interface LoginResponse {
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 

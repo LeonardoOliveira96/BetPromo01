@@ -27,26 +27,29 @@ export class AuthController {
       const loginData: LoginRequestDTO = validateLogin(req.body);
 
       // Autentica usuário
-      const result = await this.authService.login(loginData.email, loginData.password);
+      const result = await this.authService.login(loginData);
 
-      // Prepara resposta
-      const response: LoginResponseDTO = {
+      // Verifica se o login foi bem-sucedido
+      if (!result.success) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'INVALID_CREDENTIALS',
+            message: result.message || 'Credenciais inválidas'
+          }
+        });
+        return;
+      }
+
+      // Prepara resposta de sucesso
+      res.status(200).json({
         success: true,
         data: {
           token: result.token,
-          user: {
-            id: result.user.id,
-            email: result.user.email,
-            name: result.user.name,
-            role: result.user.role,
-            isActive: result.user.isActive
-          },
-          expiresIn: result.expiresIn
+          user: result.user
         },
-        message: 'Login realizado com sucesso'
-      };
-
-      res.status(200).json(response);
+        message: result.message
+      });
 
     } catch (error) {
       console.error('Erro no login:', error);
@@ -55,7 +58,7 @@ export class AuthController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: (error as any).code,
             message: error.message
           }
         });
@@ -126,10 +129,10 @@ export class AuthController {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
-          isActive: user.isActive,
-          createdAt: user.createdAt,
-          lastLogin: user.lastLogin
+          role: (user as any).role,
+          isActive: user.is_active,
+          createdAt: user.created_at,
+          lastLogin: (user as any).lastLogin
         },
         message: 'Dados do usuário obtidos com sucesso'
       });
@@ -141,7 +144,7 @@ export class AuthController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: (error as any).code,
             message: error.message
           }
         });

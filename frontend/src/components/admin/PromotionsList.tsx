@@ -1,93 +1,50 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Search, Plus, Filter } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Edit, Pause, Trash2, Play, Users, Calendar } from 'lucide-react';
-import { mockPromotions } from '@/lib/mockData';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { Promotion } from '@/types';
 
 export const PromotionsList = () => {
+  const [promotions] = useState<Promotion[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [promotions, setPromotions] = useState(mockPromotions);
-  const { toast } = useToast();
-
-  const filteredPromotions = promotions.filter(promo => {
-    const matchesSearch = promo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         promo.brand.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || promo.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleToggleStatus = (id: string) => {
-    setPromotions(prev => prev.map(promo => {
-      if (promo.id === id) {
-        const newStatus = promo.status === 'active' ? 'inactive' : 'active';
-        toast({
-          title: "Status atualizado",
-          description: `Promoção ${newStatus === 'active' ? 'ativada' : 'pausada'} com sucesso`,
-        });
-        return { ...promo, status: newStatus };
-      }
-      return promo;
-    }));
-  };
-
-  const handleDelete = (id: string, name: string) => {
-    setPromotions(prev => prev.filter(promo => promo.id !== id));
-    toast({
-      title: "Promoção excluída",
-      description: `A promoção "${name}" foi excluída com sucesso`,
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      active: 'default',
-      inactive: 'secondary',
-      expired: 'destructive'
-    } as const;
-
-    const labels = {
-      active: 'Ativa',
-      inactive: 'Pausada',
-      expired: 'Expirada'
-    };
-
-    return (
-      <Badge variant={variants[status as keyof typeof variants]}>
-        {labels[status as keyof typeof labels]}
-      </Badge>
-    );
-  };
-
-  const getTypeLabel = (type: string) => {
-    const types = {
-      deposit_bonus: 'Bônus de Depósito',
-      cashback: 'Cashback',
-      free_bet: 'Aposta Grátis'
-    };
-    return types[type as keyof typeof types] || type;
-  };
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Promoções</h1>
+          <p className="text-muted-foreground">
+            Gerencie todas as promoções da plataforma
+          </p>
+        </div>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Promoção
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Filtros e Busca</CardTitle>
+          <CardTitle>Filtros</CardTitle>
+          <CardDescription>
+            Use os filtros abaixo para encontrar promoções específicas
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nome ou marca..."
+                  placeholder="Buscar por nome ou descrição..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -95,14 +52,15 @@ export const PromotionsList = () => {
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filtrar por status" />
+              <SelectTrigger className="w-48">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="active">Ativas</SelectItem>
-                <SelectItem value="inactive">Pausadas</SelectItem>
-                <SelectItem value="expired">Expiradas</SelectItem>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="active">Ativo</SelectItem>
+                <SelectItem value="inactive">Inativo</SelectItem>
+                <SelectItem value="expired">Expirado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -111,87 +69,17 @@ export const PromotionsList = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Promoções ({filteredPromotions.length})</CardTitle>
+          <CardTitle>Lista de Promoções</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Público</TableHead>
-                  <TableHead>Validade</TableHead>
-                  <TableHead>Uso</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPromotions.map((promo) => (
-                  <TableRow key={promo.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{promo.name}</p>
-                        <p className="text-sm text-muted-foreground">{promo.brand}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getTypeLabel(promo.type)}</TableCell>
-                    <TableCell>{getStatusBadge(promo.status)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {promo.targetAudience === 'all' ? 'Todos' : 'Específico'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm">
-                        <Calendar className="h-3 w-3" />
-                        {format(promo.endDate, "dd/MM/yy", { locale: ptBR })}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <p>{promo.usageCount} usadas</p>
-                        <p className="text-muted-foreground">{promo.eligibleCount} elegíveis</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleToggleStatus(promo.id)}
-                          disabled={promo.status === 'expired'}
-                        >
-                          {promo.status === 'active' ? (
-                            <Pause className="h-4 w-4" />
-                          ) : (
-                            <Play className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDelete(promo.id, promo.name)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            
-            {filteredPromotions.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Nenhuma promoção encontrada.</p>
-              </div>
-            )}
+          <div className="text-center py-8 text-muted-foreground">
+            <Plus className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Nenhuma promoção encontrada</p>
+            <p className="text-sm mt-2">As promoções serão carregadas quando a API estiver disponível</p>
+            <Button className="mt-4" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Criar primeira promoção
+            </Button>
           </div>
         </CardContent>
       </Card>

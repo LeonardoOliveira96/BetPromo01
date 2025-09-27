@@ -15,9 +15,9 @@ export const LoginForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const success = await login(email, password);
-    
+
     if (!success) {
       toast({
         title: "Erro de autenticação",
@@ -60,9 +60,9 @@ export const LoginForm = () => {
                 required
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -73,11 +73,11 @@ export const LoginForm = () => {
               Entrar
             </Button>
           </form>
-          
+
           <div className="mt-6 p-4 bg-muted rounded-lg text-sm text-muted-foreground">
             <p className="font-medium mb-2">Credenciais para teste:</p>
-            <p><strong>Usuário:</strong> user@test.com / teste123</p>
-            <p><strong>Admin:</strong> admin@test.com / teste123</p>
+            <p><strong>Usuário:</strong> teste@teste.com / senha123</p>
+            <p><strong>Admin:</strong> admin@teste.com / senha123</p>
           </div>
         </CardContent>
       </Card>

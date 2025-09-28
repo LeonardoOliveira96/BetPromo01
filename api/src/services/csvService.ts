@@ -102,6 +102,70 @@ export class CSVService {
   }
 
   /**
+   * Processa linha CSV com formato especial (aspas duplas aninhadas)
+   * @param line - Linha do CSV
+   * @returns Objeto com dados parseados
+   */
+  private parseCustomCSVLine(line: string): any {
+    // Remove aspas externas se existirem
+    let cleanLine = line.trim();
+    if (cleanLine.startsWith('"') && cleanLine.endsWith('"')) {
+      cleanLine = cleanLine.slice(1, -1);
+    }
+    
+    // Substitui aspas duplas escapadas por aspas simples temporariamente
+    cleanLine = cleanLine.replace(/""/g, '§QUOTE§');
+    
+    // Divide por vírgulas, mas mantém aspas
+    const parts = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < cleanLine.length; i++) {
+      const char = cleanLine[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        parts.push(current.trim());
+        current = '';
+        continue;
+      }
+      
+      current += char;
+    }
+    
+    if (current) {
+      parts.push(current.trim());
+    }
+    
+    // Remove aspas e restaura aspas duplas
+     const cleanParts = parts.map(part => {
+       let clean = part.trim();
+       // Remove aspas externas
+       if (clean.startsWith('"') && clean.endsWith('"')) {
+         clean = clean.slice(1, -1);
+       }
+       // Restaura aspas duplas e remove aspas extras
+       clean = clean.replace(/§QUOTE§/g, '"');
+       // Remove aspas duplas desnecessárias no início e fim
+       if (clean.startsWith('"') && clean.endsWith('"')) {
+         clean = clean.slice(1, -1);
+       }
+       return clean;
+     });
+    
+    return {
+      smartico_user_id: cleanParts[0] || '',
+      user_ext_id: cleanParts[1] || '',
+      core_sm_brand_id: cleanParts[2] || '',
+      crm_brand_id: cleanParts[3] || '',
+      ext_brand_id: cleanParts[4] || '',
+      crm_brand_name: cleanParts[5] || ''
+    };
+  }
+
+  /**
    * Lê e valida dados do arquivo CSV
    * @param filePath - Caminho do arquivo
    * @returns Array de dados validados
@@ -110,61 +174,65 @@ export class CSVService {
     return new Promise((resolve, reject) => {
       const results: CSVRowData[] = [];
       const errors: string[] = [];
-      let lineNumber = 1;
+      let lineNumber = 0;
       let processedLines = 0;
 
       console.log(`📖 Iniciando leitura do arquivo CSV: ${path.basename(filePath)}`);
 
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (data) => {
-          lineNumber++;
-          processedLines++;
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      const lines = fileContent.split('\n').filter(line => line.trim());
+      
+      // Pula o cabeçalho
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i]?.trim();
+        if (!line) continue;
+        
+        lineNumber++;
+        processedLines++;
+        
+        // Log de progresso a cada 50.000 linhas
+        if (processedLines % 50000 === 0) {
+          console.log(`📊 Lidas ${processedLines.toLocaleString()} linhas...`);
+        }
+        
+        try {
+          // Parse customizado da linha
+          const data = this.parseCustomCSVLine(line);
           
-          // Log de progresso a cada 50.000 linhas
-          if (processedLines % 50000 === 0) {
-            console.log(`📊 Lidas ${processedLines.toLocaleString()} linhas...`);
+          // Se não tem promoção, adiciona uma padrão baseada na marca
+          if (!data.promocao_nome) {
+            const brandName = data.crm_brand_name || data.ext_brand_id || 'Marca';
+            data.promocao_nome = `Promoção Padrão ${brandName}`;
+            data.regras = data.regras || 'Promoção padrão para usuários da marca';
+            data.data_inicio = data.data_inicio || new Date().toISOString();
+            data.data_fim = data.data_fim || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 ano
           }
           
-          try {
-            // Se não tem promoção, adiciona uma padrão baseada na marca
-            if (!data.promocao_nome) {
-              const brandName = data.crm_brand_name || data.ext_brand_id || 'Marca';
-              data.promocao_nome = `Promoção Padrão ${brandName}`;
-              data.regras = data.regras || 'Promoção padrão para usuários da marca';
-              data.data_inicio = data.data_inicio || new Date().toISOString();
-              data.data_fim = data.data_fim || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 ano
-            }
-            
-            // Valida cada linha usando Zod
-            const validatedData = validateCSVRow(data);
+          // Valida cada linha usando Zod
+          const validatedData = validateCSVRow(data);
 
-            // Garante que promocao_nome é string (nunca undefined)
-            if (!validatedData.promocao_nome) {
-              validatedData.promocao_nome = '';
-            }
-
-            results.push(validatedData as CSVRowData);
-          } catch (error) {
-            if (error instanceof Error) {
-              errors.push(`Linha ${lineNumber}: ${error.message}`);
-            } else {
-              errors.push(`Linha ${lineNumber}: Erro desconhecido`);
-            }
+          // Garante que promocao_nome é string (nunca undefined)
+          if (!validatedData.promocao_nome) {
+            validatedData.promocao_nome = '';
           }
-        })
-        .on('end', () => {
-          console.log(`✅ Leitura concluída: ${processedLines.toLocaleString()} linhas processadas`);
-          
-          if (errors.length > 0) {
-            reject(new AppError(`Erros de validação no CSV: ${errors.join(', ')}`, 400, 'CSV_VALIDATION_ERROR'));
+
+          results.push(validatedData as CSVRowData);
+        } catch (error) {
+          if (error instanceof Error) {
+            errors.push(`Linha ${lineNumber + 1}: ${error.message}`);
           } else {
-            resolve(results);
+            errors.push(`Linha ${lineNumber + 1}: Erro desconhecido`);
           }
-        })
-        .on('error', (error) => {
-          reject(new AppError('Erro ao ler arquivo CSV', 400, 'CSV_READ_ERROR'));
-        });
+        }
+      }
+      
+      console.log(`✅ Leitura concluída: ${processedLines.toLocaleString()} linhas processadas`);
+      
+      if (errors.length > 0) {
+        reject(new AppError(`Erros de validação no CSV: ${errors.join(', ')}`, 400, 'CSV_VALIDATION_ERROR'));
+      } else {
+        resolve(results);
+      }
     });
   }
 

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import authRoutes from './auth';
 import userRoutes from './users';
 import csvRoutes from './csv';
+import csvOptimizedRoutes from './csvOptimized';
+import searchRoutes from './search';
 
 /**
  * Configuração principal das rotas da API
@@ -16,8 +18,12 @@ const router = Router();
  *     description: Endpoints de autenticação e autorização
  *   - name: Usuários
  *     description: Endpoints para consulta de usuários e promoções
+ *   - name: Busca
+ *     description: Endpoints de busca otimizada de usuários
  *   - name: Importação
  *     description: Endpoints para upload e processamento de arquivos CSV
+ *   - name: CSV Otimizado
+ *     description: Endpoints otimizados para importação CSV com streaming e limpeza automática
  *   - name: Sistema
  *     description: Endpoints de sistema e monitoramento
  */
@@ -30,9 +36,17 @@ router.use('/auth', authRoutes);
 // Endpoints: /consulta, /consulta/:id, /consulta/:id/historico, /consulta/system/stats, /consulta/system/brands, /consulta/health
 router.use('/consulta', userRoutes);
 
+// Rotas de busca otimizada
+// Endpoints: /search/users, /search/quick
+router.use('/search', searchRoutes);
+
 // Rotas de importação CSV
 // Endpoints: /insercao, /insercao/validate, /insercao/historico, /insercao/historico/:filename, /insercao/template, /insercao/health
 router.use('/insercao', csvRoutes);
+
+// Rotas de importação CSV otimizada
+// Endpoints: /csv-otimizado/insercao, /csv-otimizado/limpeza-arquivos, /csv-otimizado/status-disco, /csv-otimizado/configurar-limpeza, /csv-otimizado/health
+router.use('/csv-otimizado', csvOptimizedRoutes);
 
 /**
  * @swagger

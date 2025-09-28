@@ -10,12 +10,14 @@ dotenv.config();
 const poolConfig: PoolConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'betpromo_db',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'betpromo',
+  user: process.env.DB_USER || 'betpromo_user',
+  password: process.env.DB_PASSWORD || 'betpromo_pass',
   max: 20, // Máximo de conexões no pool
   idleTimeoutMillis: 30000, // Tempo limite para conexões ociosas
-  connectionTimeoutMillis: 2000, // Tempo limite para estabelecer conexão
+  connectionTimeoutMillis: 10000, // Tempo limite para estabelecer conexão (aumentado para 10s)
+  query_timeout: 30000, // Timeout para queries (30s)
+  statement_timeout: 30000, // Timeout para statements (30s)
 };
 
 /**

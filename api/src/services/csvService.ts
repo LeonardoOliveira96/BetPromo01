@@ -42,16 +42,26 @@ export class CSVService {
     const filePath = path.join(this.uploadDir, filename);
     
     try {
+      console.log(`🚀 Iniciando processamento do CSV: ${filename}`);
+      console.log(`📁 Caminho do arquivo: ${filePath}`);
+      
       // Valida o arquivo
+      console.log(`🔍 Validando arquivo...`);
       this.validateFile(file);
+      console.log(`✅ Arquivo validado com sucesso`);
 
       // Lê e valida dados do CSV
+      console.log(`📖 Iniciando leitura do arquivo CSV...`);
       const csvData = await this.readCSVFile(filePath);
+      console.log(`📊 CSV processado: ${csvData.length} linhas válidas`);
       
       // Processa os dados em transação
+      console.log(`🔄 Iniciando processamento dos dados em transação...`);
       const stats = await this.processDataInTransaction(csvData, filename);
+      console.log(`✅ Processamento concluído:`, stats);
 
       // Remove arquivo temporário
+      console.log(`🗑️ Removendo arquivo temporário...`);
       this.cleanupFile(filePath);
 
       return {
@@ -69,15 +79,19 @@ export class CSVService {
       };
 
     } catch (error) {
+      console.error('❌ Erro no processamento do CSV:', error);
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'Sem stack trace');
+      
       // Remove arquivo em caso de erro
+      console.log(`🗑️ Removendo arquivo após erro...`);
       this.cleanupFile(filePath);
       
-      console.error('Erro no processamento do CSV:', error);
-      
       if (error instanceof AppError) {
+        console.log(`🔄 Relançando AppError: ${error.message} (${error.errorCode})`);
         throw error;
       }
       
+      console.log(`🆕 Criando novo AppError para erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       throw new AppError('Erro interno no processamento do CSV', 500, 'CSV_PROCESSING_ERROR');
     }
   }
@@ -179,45 +193,59 @@ export class CSVService {
 
       console.log(`📖 Iniciando leitura do arquivo CSV: ${path.basename(filePath)}`);
 
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      const lines = fileContent.split('\n').filter(line => line.trim());
-      
-      // Pula o cabeçalho
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i]?.trim();
-        if (!line) continue;
+      try {
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        console.log(`📄 Arquivo lido com sucesso. Tamanho: ${fileContent.length} caracteres`);
         
-        lineNumber++;
-        processedLines++;
+        const lines = fileContent.split('\n').filter(line => line.trim());
+        console.log(`📋 Total de linhas encontradas: ${lines.length}`);
         
-        // Log de progresso a cada 50.000 linhas
-        if (processedLines % 50000 === 0) {
-          console.log(`📊 Lidas ${processedLines.toLocaleString()} linhas...`);
+        if (lines.length === 0) {
+          throw new Error('Arquivo CSV está vazio');
         }
         
-        try {
-          // Parse customizado da linha
-          const data = this.parseCustomCSVLine(line);
+        // Pula o cabeçalho
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i]?.trim();
+          if (!line) continue;
           
-          // Se não tem promoção, adiciona uma padrão baseada na marca
-          if (!data.promocao_nome) {
-            const brandName = data.crm_brand_name || data.ext_brand_id || 'Marca';
-            data.promocao_nome = `Promoção Padrão ${brandName}`;
-            data.regras = data.regras || 'Promoção padrão para usuários da marca';
-            data.data_inicio = data.data_inicio || new Date().toISOString();
-            data.data_fim = data.data_fim || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 ano
+          lineNumber++;
+          processedLines++;
+          
+          // Log de progresso a cada 50.000 linhas
+          if (processedLines % 50000 === 0) {
+            console.log(`📊 Lidas ${processedLines.toLocaleString()} linhas...`);
           }
           
-          // Valida cada linha usando Zod
-          const validatedData = validateCSVRow(data);
+          try {
+            console.log(`🔍 Processando linha ${lineNumber}: ${line.substring(0, 100)}...`);
+            
+            // Parse customizado da linha
+            const data = this.parseCustomCSVLine(line);
+            console.log(`✅ Parse da linha ${lineNumber} concluído:`, JSON.stringify(data, null, 2));
+            
+            // Se não tem promoção, adiciona uma padrão baseada na marca
+            if (!data.promocao_nome) {
+              const brandName = data.crm_brand_name || data.ext_brand_id || 'Marca';
+              data.promocao_nome = `Promoção Padrão ${brandName}`;
+              data.regras = data.regras || 'Promoção padrão para usuários da marca';
+              data.data_inicio = data.data_inicio || new Date().toISOString();
+              data.data_fim = data.data_fim || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 ano
+              console.log(`🔧 Dados padrão adicionados para linha ${lineNumber}:`, JSON.stringify(data, null, 2));
+            }
+            
+            // Valida cada linha usando Zod
+            console.log(`🔍 Validando linha ${lineNumber} com Zod...`);
+            const validatedData = validateCSVRow(data);
+            console.log(`✅ Validação Zod concluída para linha ${lineNumber}`);
 
-          // Garante que promocao_nome é string (nunca undefined)
-          if (!validatedData.promocao_nome) {
-            validatedData.promocao_nome = '';
-          }
+            // Garante que promocao_nome é string (nunca undefined)
+            if (!validatedData.promocao_nome) {
+              validatedData.promocao_nome = '';
+            }
 
-          results.push(validatedData as CSVRowData);
-        } catch (error) {
+            results.push(validatedData as CSVRowData);
+          } catch (error) {
           if (error instanceof Error) {
             errors.push(`Linha ${lineNumber + 1}: ${error.message}`);
           } else {
@@ -232,6 +260,11 @@ export class CSVService {
         reject(new AppError(`Erros de validação no CSV: ${errors.join(', ')}`, 400, 'CSV_VALIDATION_ERROR'));
       } else {
         resolve(results);
+      }
+      
+      } catch (fileError) {
+        console.error('❌ Erro na leitura do arquivo CSV:', fileError);
+        reject(new AppError(`Erro na leitura do arquivo CSV: ${fileError instanceof Error ? fileError.message : 'Erro desconhecido'}`, 500, 'CSV_FILE_READ_ERROR'));
       }
     });
   }
@@ -370,16 +403,21 @@ export class CSVService {
   private async createPromocoes(client: any, filename: string): Promise<number> {
     const result = await client.query(`
       INSERT INTO promocoes (nome, regras, data_inicio, data_fim, status)
-      SELECT DISTINCT 
+      SELECT 
         promocao_nome,
-        regras,
-        data_inicio,
-        data_fim,
+        MAX(regras) as regras,
+        MIN(data_inicio) as data_inicio,
+        MAX(data_fim) as data_fim,
         'active'
       FROM staging_import 
       WHERE filename = $1 
         AND promocao_nome IS NOT NULL
-        AND promocao_nome NOT IN (SELECT nome FROM promocoes)
+      GROUP BY promocao_nome
+      ON CONFLICT (nome) DO UPDATE SET
+        regras = COALESCE(EXCLUDED.regras, promocoes.regras),
+        data_inicio = COALESCE(EXCLUDED.data_inicio, promocoes.data_inicio),
+        data_fim = COALESCE(EXCLUDED.data_fim, promocoes.data_fim),
+        updated_at = NOW()
     `, [filename]);
 
     return result.rowCount || 0;
@@ -396,16 +434,17 @@ export class CSVService {
       INSERT INTO usuario_promocao (
         smartico_user_id, promocao_id, data_inicio, data_fim, regras, status
       )
-      SELECT DISTINCT
+      SELECT 
         s.smartico_user_id,
         p.promocao_id,
-        s.data_inicio,
-        s.data_fim,
-        s.regras,
+        MIN(s.data_inicio) as data_inicio,
+        MAX(s.data_fim) as data_fim,
+        MAX(s.regras) as regras,
         'active'
       FROM staging_import s
       JOIN promocoes p ON s.promocao_nome = p.nome
       WHERE s.filename = $1
+      GROUP BY s.smartico_user_id, p.promocao_id
       ON CONFLICT (smartico_user_id, promocao_id) DO NOTHING
     `, [filename]);
 

@@ -69,6 +69,9 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [csvUserIds, setCsvUserIds] = useState<string[]>([]);
+  
+  // Form submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -240,12 +243,20 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevenir submissões múltiplas
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
     if (!startDate || !endDate) {
       toast({
         title: "Datas obrigatórias",
         description: "Selecione as datas de início e fim da promoção",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
 
@@ -256,6 +267,7 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
         description: "Para clientes específicos, você deve processar um CSV ou inserir IDs manualmente",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
 
@@ -274,6 +286,7 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
         description: "A data/hora de fim deve ser posterior à data/hora de início",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
 
@@ -334,6 +347,7 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
         description: error.message || "Erro ao criar promoção",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
 
@@ -361,6 +375,7 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
       fileInputRef.current.value = '';
     }
 
+    setIsSubmitting(false);
     onSuccess();
   };
 
@@ -876,9 +891,13 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
                   </CardContent>
                 </Card>
 
-                <Button type="submit" className="w-full h-12 text-lg font-semibold">
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 text-lg font-semibold"
+                  disabled={isSubmitting}
+                >
                   <CheckCircle className="mr-2 h-5 w-5" />
-                  Criar Promoção
+                  {isSubmitting ? 'Criando Promoção...' : 'Criar Promoção'}
                 </Button>
               </div>
             </div>

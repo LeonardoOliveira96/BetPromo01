@@ -1,5 +1,5 @@
 // API service for REST endpoints
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 export interface LoginRequest {
   email: string;
@@ -90,7 +90,12 @@ class ApiService {
     return response.json();
   }
 
-  async searchUsers(query: string, type: string, page: number = 1, limit: number = 20): Promise<{
+  async searchUsers(
+    query: string,
+    type: 'smartico_user_id' | 'user_ext_id' | 'both' = 'both',
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{
     success: boolean;
     data: {
       users: Array<{
@@ -123,27 +128,6 @@ class ApiService {
     });
 
     const response = await fetch(`${API_BASE_URL}/search/users?${params}`, {
-      method: 'GET',
-      headers: this.getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-  }
-
-  async quickSearch(query: string): Promise<{
-    success: boolean;
-    data: Array<{
-      smartico_user_id: number;
-      user_ext_id: string;
-      crm_brand_name: string;
-    }>;
-    message?: string;
-  }> {
-    const response = await fetch(`${API_BASE_URL}/search/quick?query=${encodeURIComponent(query)}`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });

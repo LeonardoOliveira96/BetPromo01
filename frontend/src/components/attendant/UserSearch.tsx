@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,12 +36,6 @@ interface SearchResult {
   };
 }
 
-interface QuickSearchResult {
-  smartico_user_id: number;
-  user_ext_id: string;
-  crm_brand_name: string;
-}
-
 export const UserSearch = () => {
   const [query, setQuery] = useState('');
   const [searchType, setSearchType] = useState<'smartico_user_id' | 'user_ext_id' | 'both'>('both');
@@ -49,43 +43,7 @@ export const UserSearch = () => {
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [selectedUser, setSelectedUser] = useState<PromotionUser | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [quickSuggestions, setQuickSuggestions] = useState<QuickSearchResult[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const { toast } = useToast();
-
-  // Busca rápida para autocomplete
-  const fetchQuickSuggestions = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      setQuickSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    try {
-      const response = await apiService.quickSearch(searchQuery);
-
-      if (response.success && Array.isArray(response.data)) {
-        setQuickSuggestions(response.data);
-        setShowSuggestions(true);
-      }
-    } catch (error) {
-      console.error('Erro na busca rápida:', error);
-    }
-  }, []);
-
-  // Debounce para busca rápida
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (query.trim()) {
-        fetchQuickSuggestions(query.trim());
-      } else {
-        setQuickSuggestions([]);
-        setShowSuggestions(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [query, fetchQuickSuggestions]);
 
   const handleSearch = async (page = 1) => {
     if (!query.trim()) {
@@ -98,7 +56,6 @@ export const UserSearch = () => {
     }
 
     setIsLoading(true);
-    setShowSuggestions(false);
 
     try {
       const response = await apiService.searchUsers(query.trim(), searchType, page, 20);
@@ -149,11 +106,14 @@ export const UserSearch = () => {
       const data = await apiService.getUserDetails(user.smartico_user_id.toString(), 'smartico_user_id');
 
       if (data.success) {
-        setSelectedUser(data.data as PromotionUser);
+        setSelectedUser({
+          ...data.data,
+          _id: data.data.smartico_user_id.toString(),
+        });
       } else {
         toast({
           title: "Erro ao carregar detalhes",
-          description: data.message?.toString() || 'Erro desconhecido',
+          description: data.message,
           variant: "destructive",
         });
       }
@@ -167,13 +127,6 @@ export const UserSearch = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSuggestionClick = (suggestion: QuickSearchResult) => {
-    setQuery(suggestion.user_ext_id);
-    setSearchType('user_ext_id');
-    setShowSuggestions(false);
-    setTimeout(() => handleSearch(), 100);
   };
 
   const formatDate = (dateString: string) => {
@@ -201,7 +154,7 @@ export const UserSearch = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2 relative">
+            <div className="md:col-span-2">
               <Label htmlFor="search-query">Termo de Busca</Label>
               <Input
                 id="search-query"
@@ -209,40 +162,17 @@ export const UserSearch = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                onFocus={() => query.length >= 2 && setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               />
-
-              {/* Sugestões de autocomplete */}
-              {showSuggestions && quickSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                  {quickSuggestions.map((suggestion, index) => (
-                    <div
-                      key={index}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{suggestion.user_ext_id}</div>
-                          <div className="text-sm text-gray-500">ID: {suggestion.smartico_user_id}</div>
-                        </div>
-                        <div className="text-sm text-gray-400">{suggestion.crm_brand_name}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div>
               <Label htmlFor="search-type">Tipo de Busca</Label>
               <Select value={searchType} onValueChange={(value: 'smartico_user_id' | 'user_ext_id' | 'both') => setSearchType(value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="both">Ambos os campos</SelectItem>
+                  <SelectItem value="both">Ambos</SelectItem>
                   <SelectItem value="smartico_user_id">Smartico ID</SelectItem>
                   <SelectItem value="user_ext_id">ID Externo</SelectItem>
                 </SelectContent>
@@ -252,7 +182,7 @@ export const UserSearch = () => {
 
           <Button
             onClick={() => handleSearch()}
-            disabled={isLoading}
+            disabled={isLoading || !query.trim()}
             className="w-full md:w-auto"
           >
             {isLoading ? (

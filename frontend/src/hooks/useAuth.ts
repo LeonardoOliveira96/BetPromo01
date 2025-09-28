@@ -1,6 +1,7 @@
-import { useState, useEffect, createContext, useContext } from 'react';
-import { apiService, User, LoginRequest } from '@/lib/api';
-import { AuthContextType } from '@/types';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiService } from '../lib/api';
+import { TokenStorage } from '../lib/tokenStorage';
+import type { User, AuthContextType, TokenInfo } from '../types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -12,69 +13,94 @@ export const useAuth = () => {
   return context;
 };
 
-export const useAuthProvider = () => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Verifica token na inicialização
   useEffect(() => {
-    // Check for stored token on mount
-    const token = localStorage.getItem('token');
-    if (token) {
-      apiService.getCurrentUser()
-        .then((userData) => {
-          setUser(userData);
-        })
-        .catch(() => {
-          // Token is invalid, remove it
-          localStorage.removeItem('token');
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
-      setIsLoading(false);
-    }
+    const initializeAuth = async () => {
+      try {
+        const token = TokenStorage.getToken();
+        
+        if (token) {
+          // Se há token, tenta validar obtendo dados do usuário
+          try {
+            const userData = await apiService.getCurrentUser();
+            setUser(userData);
+          } catch (error) {
+            // Token inválido, remove
+            TokenStorage.clearToken();
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Erro na inicialização:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    
     try {
-      const credentials: LoginRequest = { email, password };
-      const response = await apiService.login(credentials);
+      setIsLoading(true);
+      const response = await apiService.login({ email, password });
       
       if (response.success && response.data) {
-        const { token, user: userData } = response.data;
-        localStorage.setItem('token', token);
-        setUser(userData);
-        setIsLoading(false);
+        // Armazena o token com expiração de 7 dias
+        TokenStorage.setToken(response.data.token, 7);
+        setUser(response.data.user);
         return true;
       }
+      return false;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Erro no login:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
       await apiService.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Erro no logout:', error);
     } finally {
+      TokenStorage.clearToken();
       setUser(null);
-      localStorage.removeItem('token');
     }
   };
 
-  return {
+  const getTokenStatus = (): TokenInfo | null => {
+    const tokenInfo = TokenStorage.getTokenInfo();
+    if (!tokenInfo) return null;
+
+    return {
+      expiresAt: tokenInfo.expiresAt,
+      refreshAt: tokenInfo.refreshAt,
+      daysLeft: tokenInfo.daysLeft
+    };
+  };
+
+  const extendSession = (days: number = 7): boolean => {
+    return TokenStorage.extendToken(days);
+  };
+
+  const value: AuthContextType = {
     user,
     login,
     logout,
-    isLoading
+    isLoading,
+    getTokenStatus,
+    extendSession,
   };
-};
 
-export { AuthContext };
+  return React.createElement(AuthContext.Provider, { value }, children);
+}

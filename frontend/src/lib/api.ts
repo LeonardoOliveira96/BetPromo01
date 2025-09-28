@@ -1,4 +1,6 @@
 // API service for REST endpoints
+import { TokenStorage } from './tokenStorage';
+
 const API_BASE_URL = 'http://localhost:3000/api';
 
 export interface LoginRequest {
@@ -29,7 +31,7 @@ export interface User {
 
 class ApiService {
   private getAuthHeaders(): HeadersInit {
-    const token = localStorage.getItem('token');
+    const token = TokenStorage.getToken();
     return {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -74,7 +76,7 @@ class ApiService {
     }
 
     const data = await response.json();
-    return data.user;
+    return data.data; // Corrigido: retorna data.data em vez de data.user
   }
 
   async refreshToken(): Promise<LoginResponse> {

@@ -10,11 +10,19 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface TokenInfo {
+  expiresAt: Date;
+  refreshAt: Date;
+  daysLeft: number;
+}
+
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  getTokenStatus: () => TokenInfo | null;
+  extendSession: (days?: number) => boolean;
 }
 
 export interface Client {

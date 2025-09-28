@@ -110,7 +110,8 @@ export class AuthController {
   me = async (req: Request, res: Response): Promise<void> => {
     try {
       // O middleware de autenticação já validou o token e adicionou o usuário ao req
-      const userId = (req as any).user?.id;
+      const userFromToken = (req as any).user;
+      const userId = userFromToken?.userId;
 
       if (!userId) {
         throw new AppError('Usuário não encontrado', 401, 'USER_NOT_FOUND');

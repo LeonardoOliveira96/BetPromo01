@@ -167,6 +167,20 @@ class ApiService {
 
     return response.json();
   }
+
+  // Método genérico GET para endpoints customizados
+  async get<T = unknown>(endpoint: string): Promise<T> {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
 }
 
 export const apiService = new ApiService();

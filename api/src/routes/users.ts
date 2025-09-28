@@ -350,6 +350,80 @@ router.get('/system/brands',
 
 /**
  * @swagger
+ * /consulta/{id}/promotions:
+ *   get:
+ *     summary: Busca promoções detalhadas de um usuário
+ *     description: Retorna todas as promoções associadas a um usuário específico com detalhes completos
+ *     tags: [Usuários]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do usuário no Smartico
+ *     responses:
+ *       200:
+ *         description: Promoções encontradas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     smartico_user_id:
+ *                       type: integer
+ *                     user_ext_id:
+ *                       type: string
+ *                     crm_brand_name:
+ *                       type: string
+ *                     promotions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           promocao_id:
+ *                             type: integer
+ *                           nome:
+ *                             type: string
+ *                           regras:
+ *                             type: string
+ *                           data_inicio:
+ *                             type: string
+ *                             format: date-time
+ *                           data_fim:
+ *                             type: string
+ *                             format: date-time
+ *                           status:
+ *                             type: string
+ *                           status_calculado:
+ *                             type: string
+ *                           data_vinculo:
+ *                             type: string
+ *                             format: date-time
+ *                           data_atualizacao_vinculo:
+ *                             type: string
+ *                             format: date-time
+ *       400:
+ *         description: ID de usuário inválido
+ *       404:
+ *         description: Usuário não encontrado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/:id/promotions',
+  authenticateToken,
+  asyncHandler(userController.getUserPromotions.bind(userController))
+);
+
+/**
+ * @swagger
  * /consulta/health:
  *   get:
  *     summary: Verifica saúde do serviço de usuários

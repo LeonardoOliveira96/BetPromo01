@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { UserService } from '../services/userService';
 import { validateConsultaQuery } from '../schemas/validation';
-import { ConsultaResponseDTO, PaginationParams, UserFilters } from '../types';
+import { ConsultaResponseDTO, UserFilters } from '../types';
 import { AppError } from '../middlewares/errorHandler';
 
 /**
@@ -26,53 +26,10 @@ export class UserController {
       // Valida parâmetros de consulta
       const queryParams = validateConsultaQuery(req.query);
 
-      // Prepara parâmetros de paginação
-      const pagination: PaginationParams = {
-        page: queryParams.page || 1,
-        limit: queryParams.limit || 50,
-        offset: ((queryParams.page || 1) - 1) * (queryParams.limit || 50)
-      };
+      // Busca dados usando o método correto do service
+      const result = await this.userService.consultarUsuarios(queryParams);
 
-      // Prepara filtros
-      const filters: UserFilters = {
-        smartico_user_id: queryParams.smartico_user_id,
-        core_sm_brand_id: queryParams.core_sm_brand_id,
-        crm_brand_id: queryParams.crm_brand_id,
-        ext_brand_id: queryParams.ext_brand_id,
-        crm_brand_name: queryParams.crm_brand_name,
-        promocao_nome: queryParams.promocao_nome,
-        status: queryParams.status || 'active',
-        data_inicio: queryParams.data_inicio,
-        data_fim: queryParams.data_fim
-      };
-
-      // Busca dados
-      const result = await this.userService.getUsersWithPromotions(pagination, filters);
-
-      // Prepara resposta
-      const response: ConsultaResponseDTO = {
-        success: true,
-        data: {
-          users: result.users,
-          pagination: {
-            currentPage: pagination.page,
-            totalPages: Math.ceil(result.total / pagination.limit),
-            totalItems: result.total,
-            itemsPerPage: pagination.limit,
-            hasNext: pagination.page < Math.ceil(result.total / pagination.limit),
-            hasPrev: pagination.page > 1
-          },
-          filters: filters,
-          summary: {
-            totalUsers: result.total,
-            activePromotions: result.activePromotions,
-            uniqueBrands: result.uniqueBrands
-          }
-        },
-        message: `${result.users.length} usuários encontrados`
-      };
-
-      res.status(200).json(response);
+      res.status(200).json(result);
 
     } catch (error) {
       console.error('Erro na consulta:', error);
@@ -81,7 +38,7 @@ export class UserController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: error.errorCode || 'APP_ERROR',
             message: error.message
           }
         });
@@ -105,14 +62,14 @@ export class UserController {
    */
   consultaById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const smartico_user_id = parseInt(req.params.id);
+      const smartico_user_id = parseInt(req.params.id ?? '');
 
       if (isNaN(smartico_user_id)) {
         throw new AppError('ID do usuário inválido', 400, 'INVALID_USER_ID');
       }
 
       // Busca usuário específico
-      const user = await this.userService.getUserById(smartico_user_id);
+      const user = await this.userService.buscarUsuarioPorId(smartico_user_id);
 
       if (!user) {
         throw new AppError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
@@ -131,7 +88,7 @@ export class UserController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: error.errorCode || 'APP_ERROR',
             message: error.message
           }
         });
@@ -155,7 +112,7 @@ export class UserController {
    */
   historicoById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const smartico_user_id = parseInt(req.params.id);
+      const smartico_user_id = parseInt(req.params.id ?? '');
 
       if (isNaN(smartico_user_id)) {
         throw new AppError('ID do usuário inválido', 400, 'INVALID_USER_ID');
@@ -181,7 +138,7 @@ export class UserController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: error.errorCode || 'APP_ERROR',
             message: error.message
           }
         });
@@ -221,7 +178,7 @@ export class UserController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: error.errorCode || 'APP_ERROR',
             message: error.message
           }
         });
@@ -261,7 +218,7 @@ export class UserController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: error.errorCode || 'APP_ERROR',
             message: error.message
           }
         });
@@ -274,6 +231,47 @@ export class UserController {
           }
         });
       }
+    }
+  };
+
+  /**
+   * GET /:id/promotions
+   * Busca promoções detalhadas de um usuário
+   * @param req - Request com smartico_user_id
+   * @param res - Response com promoções do usuário
+   */
+  getUserPromotions = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const smarticoUserId = parseInt(req.params.id ?? '');
+
+      if (!smarticoUserId || isNaN(smarticoUserId)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_USER_ID',
+            message: 'ID do usuário inválido'
+          }
+        });
+        return;
+      }
+
+      const promotionsData = await this.userService.getUserPromotionsDetailed(smarticoUserId);
+
+      res.status(200).json({
+        success: true,
+        data: promotionsData,
+        message: 'Promoções do usuário obtidas com sucesso'
+      });
+
+    } catch (error) {
+      console.error('Erro ao buscar promoções do usuário:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Erro interno do servidor'
+        }
+      });
     }
   };
 

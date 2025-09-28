@@ -301,80 +301,192 @@ export const UserSearch = () => {
 
       {/* Detalhes do Usuário Selecionado */}
       {selectedUser && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Detalhes do Usuário
-            </CardTitle>
-            <CardDescription>
-              Informações completas do usuário selecionado
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Header com informações principais */}
+          <Card className="border-l-4 border-l-blue-500">
+            <CardHeader>
+              <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">ID Externo</Label>
-                  <p className="text-lg font-medium">{selectedUser.user_ext_id}</p>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <User className="h-6 w-6" />
+                    {selectedUser.user_ext_id}
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1">
+                    {selectedUser.crm_brand_name} • Smartico ID: {selectedUser.smartico_user_id}
+                  </CardDescription>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">Smartico ID</Label>
-                  <p className="text-lg font-medium">{selectedUser.smartico_user_id}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">Marca</Label>
-                  <p className="text-lg font-medium">{selectedUser.crm_brand_name}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">Brand ID (CRM)</Label>
-                  <p className="text-lg font-medium">{selectedUser.crm_brand_id}</p>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-sm">
+                    ID: {selectedUser._id.slice(-8)}
+                  </Badge>
+                  <Badge 
+                    variant={selectedUser.current_promotions.length > 0 ? "default" : "secondary"}
+                    className="text-sm"
+                  >
+                    {selectedUser.current_promotions.length} Promoções Ativas
+                  </Badge>
                 </div>
               </div>
+            </CardHeader>
+          </Card>
 
-              <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Informações de Identificação */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Hash className="h-5 w-5" />
+                  Identificação
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">ID Externo</Label>
+                    <p className="text-lg font-medium font-mono bg-gray-50 px-2 py-1 rounded">
+                      {selectedUser.user_ext_id}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Smartico ID</Label>
+                    <p className="text-lg font-medium font-mono bg-gray-50 px-2 py-1 rounded">
+                      {selectedUser.smartico_user_id}
+                    </p>
+                  </div>
+                </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Brand ID (Externo)</Label>
-                  <p className="text-lg font-medium">{selectedUser.ext_brand_id}</p>
+                  <Label className="text-sm font-medium text-gray-500">ID do Sistema</Label>
+                  <p className="text-sm font-mono text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                    {selectedUser._id}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Informações da Marca */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building className="h-5 w-5" />
+                  Marca e Plataforma
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-500">Nome da Marca</Label>
+                  <p className="text-lg font-medium">{selectedUser.crm_brand_name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Brand ID (CRM)</Label>
+                    <p className="text-base font-mono bg-gray-50 px-2 py-1 rounded">
+                      {selectedUser.crm_brand_id}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Brand ID (Externo)</Label>
+                    <p className="text-base font-mono bg-gray-50 px-2 py-1 rounded">
+                      {selectedUser.ext_brand_id}
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Core SM Brand ID</Label>
-                  <p className="text-lg font-medium">{selectedUser.core_sm_brand_id}</p>
+                  <p className="text-base font-mono bg-gray-50 px-2 py-1 rounded">
+                    {selectedUser.core_sm_brand_id}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Informações Temporais */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Calendar className="h-5 w-5" />
+                  Histórico
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-500">Data de Criação</Label>
+                  <p className="text-base font-medium">{formatDate(selectedUser.created_at)}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {Math.floor((new Date().getTime() - new Date(selectedUser.created_at).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Criado em</Label>
-                  <p className="text-lg font-medium">{formatDate(selectedUser.created_at)}</p>
+                  <Label className="text-sm font-medium text-gray-500">Última Atualização</Label>
+                  <p className="text-base font-medium">{formatDate(selectedUser.updated_at)}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {Math.floor((new Date().getTime() - new Date(selectedUser.updated_at).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
+                  </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Status e Promoções */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ExternalLink className="h-5 w-5" />
+                  Status e Promoções
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Última atualização</Label>
-                  <p className="text-lg font-medium">{formatDate(selectedUser.updated_at)}</p>
+                  <Label className="text-sm font-medium text-gray-500">Status do Usuário</Label>
+                  <Badge variant="default" className="mt-1">
+                    Ativo
+                  </Badge>
                 </div>
-              </div>
-            </div>
+                
+                {selectedUser.current_promotions.length > 0 ? (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">
+                      Promoções Ativas ({selectedUser.current_promotions.length})
+                    </Label>
+                    <div className="flex gap-2 flex-wrap mt-2">
+                      {selectedUser.current_promotions.map((promo, index) => (
+                        <Badge key={index} variant="default" className="text-xs">
+                          {promo}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Promoções Ativas</Label>
+                    <p className="text-sm text-gray-500 mt-1">Nenhuma promoção ativa no momento</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-            {selectedUser.current_promotions.length > 0 && (
-              <div className="mt-6">
-                <Label className="text-sm font-medium text-gray-500">Promoções Ativas</Label>
-                <div className="flex gap-2 flex-wrap mt-2">
-                  {selectedUser.current_promotions.map((promo, index) => (
-                    <Badge key={index} variant="default">
-                      {promo}
-                    </Badge>
-                  ))}
-                </div>
+          {/* Ações */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" className="gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  Ver no Smartico
+                </Button>
+                <Button variant="outline" className="gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Histórico Completo
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedUser(null)}
+                  className="ml-auto"
+                >
+                  Fechar Detalhes
+                </Button>
               </div>
-            )}
-
-            <div className="mt-6 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setSelectedUser(null)}
-              >
-                Fechar Detalhes
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

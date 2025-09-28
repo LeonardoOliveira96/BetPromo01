@@ -254,6 +254,21 @@ export interface JWTPayload {
 }
 
 /**
+ * Interface para filtros de usuários
+ */
+export interface UserFilters {
+  smartico_user_id?: number;
+  core_sm_brand_id?: number;
+  crm_brand_id?: number;
+  ext_brand_id?: string;
+  crm_brand_name?: string;
+  promocao_nome?: string;
+  status?: string;
+  data_inicio?: string;
+  data_fim?: string;
+}
+
+/**
  * Tipo para estatísticas de importação
  */
 export interface ImportStats {

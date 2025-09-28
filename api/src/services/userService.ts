@@ -369,6 +369,69 @@ export class UserService {
   }
 
   /**
+   * Busca promoções detalhadas de um usuário específico
+   * @param smarticoUserId - ID do usuário no Smartico
+   * @returns Dados do usuário com suas promoções detalhadas
+   */
+  async getUserPromotionsDetailed(smarticoUserId: number): Promise<any> {
+    try {
+      const result = await query(`
+        SELECT 
+          u.smartico_user_id,
+          u.user_ext_id,
+          u.crm_brand_name,
+          p.promocao_id,
+          p.nome,
+          p.regras,
+          p.data_inicio,
+          p.data_fim,
+          p.status,
+          p.status_calculado,
+          up.created_at as data_vinculo,
+          up.updated_at as data_atualizacao_vinculo
+        FROM usuarios_final u
+        LEFT JOIN usuario_promocao up ON u.smartico_user_id = up.smartico_user_id
+        LEFT JOIN promocoes p ON up.promocao_id = p.promocao_id
+        WHERE u.smartico_user_id = $1
+        ORDER BY up.created_at DESC
+      `, [smarticoUserId]);
+
+      if (result.rows.length === 0) {
+        return {
+          smartico_user_id: smarticoUserId,
+          promotions: []
+        };
+      }
+
+      // Agrupa as promoções
+      const promotions = result.rows
+        .filter(row => row.promocao_id !== null)
+        .map(row => ({
+          promocao_id: row.promocao_id,
+          nome: row.nome,
+          regras: row.regras,
+          data_inicio: row.data_inicio,
+          data_fim: row.data_fim,
+          status: row.status,
+          status_calculado: row.status_calculado,
+          data_vinculo: row.data_vinculo,
+          data_atualizacao_vinculo: row.data_atualizacao_vinculo
+        }));
+
+      return {
+        smartico_user_id: smarticoUserId,
+        user_ext_id: result.rows[0].user_ext_id,
+        crm_brand_name: result.rows[0].crm_brand_name,
+        promotions: promotions
+      };
+
+    } catch (error) {
+      console.error('Erro ao buscar promoções detalhadas do usuário:', error);
+      throw new AppError('Erro interno do servidor', 500, 'USER_PROMOTIONS_ERROR');
+    }
+  }
+
+  /**
    * Verifica saúde do serviço de usuários
    * @returns Status da saúde do serviço
    */

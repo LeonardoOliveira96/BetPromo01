@@ -4,6 +4,7 @@ import userRoutes from './users';
 import csvRoutes from './csv';
 import csvOptimizedRoutes from './csvOptimized';
 import searchRoutes from './search';
+import promotionRoutes from './promotions';
 
 /**
  * Configuração principal das rotas da API
@@ -20,6 +21,8 @@ const router = Router();
  *     description: Endpoints para consulta de usuários e promoções
  *   - name: Busca
  *     description: Endpoints de busca otimizada de usuários
+ *   - name: Promoções
+ *     description: Endpoints para gerenciamento de promoções
  *   - name: Importação
  *     description: Endpoints para upload e processamento de arquivos CSV
  *   - name: CSV Otimizado
@@ -39,6 +42,10 @@ router.use('/consulta', userRoutes);
 // Rotas de busca otimizada
 // Endpoints: /search/users, /search/quick
 router.use('/search', searchRoutes);
+
+// Rotas de promoções
+// Endpoints: /promocoes, /promocoes/:id, /promocoes/:id/users
+router.use('/promocoes', promotionRoutes);
 
 // Rotas de importação CSV
 // Endpoints: /insercao, /insercao/validate, /insercao/historico, /insercao/historico/:filename, /insercao/template, /insercao/health

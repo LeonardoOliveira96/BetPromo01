@@ -42,7 +42,7 @@ export interface Promocao {
   regras?: string;
   data_inicio?: Date;
   data_fim?: Date;
-  status: 'active' | 'inactive' | 'expired';
+  status: 'active' | 'inactive' | 'expired' | 'scheduled';
   created_at: Date;
   updated_at: Date;
 }

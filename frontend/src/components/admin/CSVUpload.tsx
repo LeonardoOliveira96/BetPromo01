@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { TokenStorage } from '@/lib/tokenStorage';
 
 interface UploadResult {
   success: boolean;
@@ -104,7 +105,7 @@ export const CSVUpload = () => {
       const response = await fetch('http://localhost:3000/api/insercao', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${TokenStorage.getToken()}`
         },
         body: formData,
       });

@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Search, User, Calendar, Building, Hash, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiService } from '@/lib/api';
 
 interface PromotionUser {
   _id: string;
@@ -61,25 +62,10 @@ export const UserSearch = () => {
     }
 
     try {
-      const response = await fetch(`/api/search/quick?query=${encodeURIComponent(searchQuery)}`);
+      const response = await apiService.quickSearch(searchQuery);
 
-      // Verificar se a resposta é válida
-      if (!response.ok) {
-        console.error('Erro na busca rápida: Status', response.status);
-        return;
-      }
-
-      // Verificar se o content-type é JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Erro na busca rápida: Resposta não é JSON');
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        setQuickSuggestions(data.data);
+      if (response.success && Array.isArray(response.data)) {
+        setQuickSuggestions(response.data);
         setShowSuggestions(true);
       }
     } catch (error) {
@@ -115,49 +101,33 @@ export const UserSearch = () => {
     setShowSuggestions(false);
 
     try {
-      const params = new URLSearchParams({
-        query: query.trim(),
-        type: searchType,
-        page: page.toString(),
-        limit: '20'
-      });
+      const response = await apiService.searchUsers(query.trim(), searchType, page, 20);
 
-      const response = await fetch(`/api/search/users?${params}`);
-
-      // Verificar se a resposta é válida
-      if (!response.ok) {
-        toast({
-          title: "Erro na busca",
-          description: `Erro do servidor: ${response.status}`,
-          variant: "destructive",
+      if (response.success && response.data) {
+        setSearchResult({
+          users: response.data.users.map((u) => ({
+            _id: u.smartico_user_id.toString(),
+            smartico_user_id: u.smartico_user_id,
+            user_ext_id: u.user_ext_id,
+            core_sm_brand_id: u.core_sm_brand_id,
+            crm_brand_id: u.crm_brand_id,
+            ext_brand_id: u.ext_brand_id,
+            crm_brand_name: u.crm_brand_name,
+            current_promotions: u.current_promotions,
+            created_at: u.created_at,
+            updated_at: u.updated_at,
+          })),
+          pagination: response.data.pagination,
         });
-        return;
-      }
-
-      // Verificar se o content-type é JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        toast({
-          title: "Erro na busca",
-          description: "Resposta inválida do servidor",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        setSearchResult(data.data);
         setCurrentPage(page);
         toast({
           title: "Busca realizada",
-          description: data.message,
+          description: `Encontrado(s) ${response.data.users.length} usuário(s)`,
         });
       } else {
         toast({
           title: "Erro na busca",
-          description: data.message,
+          description: response.message || 'Erro desconhecido',
           variant: "destructive",
         });
       }
@@ -176,37 +146,14 @@ export const UserSearch = () => {
   const handleUserDetails = async (user: PromotionUser) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/search/users/${user.smartico_user_id}?type=smartico_user_id`);
-
-      // Verificar se a resposta é válida
-      if (!response.ok) {
-        toast({
-          title: "Erro ao carregar detalhes",
-          description: `Erro do servidor: ${response.status}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Verificar se o content-type é JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        toast({
-          title: "Erro ao carregar detalhes",
-          description: "Resposta inválida do servidor",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiService.getUserDetails(user.smartico_user_id.toString(), 'smartico_user_id');
 
       if (data.success) {
-        setSelectedUser(data.data);
+        setSelectedUser(data.data as PromotionUser);
       } else {
         toast({
           title: "Erro ao carregar detalhes",
-          description: data.message,
+          description: data.message?.toString() || 'Erro desconhecido',
           variant: "destructive",
         });
       }

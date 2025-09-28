@@ -1,5 +1,5 @@
 // API service for REST endpoints
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:8081/api';
 
 export interface LoginRequest {
   email: string;
@@ -80,6 +80,98 @@ class ApiService {
   async refreshToken(): Promise<LoginResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async searchUsers(query: string, type: string, page: number = 1, limit: number = 20): Promise<{
+    success: boolean;
+    data: {
+      users: Array<{
+        smartico_user_id: number;
+        user_ext_id: string;
+        core_sm_brand_id: number;
+        crm_brand_id: number;
+        ext_brand_id: string;
+        crm_brand_name: string;
+        current_promotions: string[];
+        created_at: string;
+        updated_at: string;
+      }>;
+      pagination: {
+        currentPage: number;
+        totalPages: number;
+        totalCount: number;
+        limit: number;
+        hasNextPage: boolean;
+        hasPrevPage: boolean;
+      };
+    };
+    message?: string;
+  }> {
+    const params = new URLSearchParams({
+      query: query.trim(),
+      type,
+      page: page.toString(),
+      limit: limit.toString()
+    });
+
+    const response = await fetch(`${API_BASE_URL}/search/users?${params}`, {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async quickSearch(query: string): Promise<{
+    success: boolean;
+    data: Array<{
+      smartico_user_id: number;
+      user_ext_id: string;
+      crm_brand_name: string;
+    }>;
+    message?: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/search/quick?query=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getUserDetails(userId: string, type: string = 'smartico_user_id'): Promise<{
+    success: boolean;
+    data: {
+      smartico_user_id: number;
+      user_ext_id: string;
+      core_sm_brand_id: number;
+      crm_brand_id: number;
+      ext_brand_id: string;
+      crm_brand_name: string;
+      current_promotions: string[];
+      created_at: string;
+      updated_at: string;
+    };
+    message?: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/search/users/${userId}?type=${type}`, {
+      method: 'GET',
       headers: this.getAuthHeaders(),
     });
 

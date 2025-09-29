@@ -145,6 +145,71 @@ router.post('/',
 
 /**
  * @swagger
+ * /insercao/vincular-usuarios:
+ *   post:
+ *     summary: Vincula usuários do CSV processado à uma promoção
+ *     description: |
+ *       Vincula usuários de um arquivo CSV já processado à uma promoção específica.
+ *       Este endpoint deve ser chamado após o processamento do CSV para criar a promoção
+ *       e vincular os usuários a ela.
+ *     tags: [Importação]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               filename:
+ *                 type: string
+ *                 description: Nome do arquivo CSV processado
+ *                 example: "import-1234567890-123456789.csv"
+ *               promotionName:
+ *                 type: string
+ *                 description: Nome da promoção para vincular os usuários
+ *                 example: "Promoção de Boas-vindas"
+ *             required:
+ *               - filename
+ *               - promotionName
+ *     responses:
+ *       200:
+ *         description: Usuários vinculados com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     filename:
+ *                       type: string
+ *                     promotionName:
+ *                       type: string
+ *                     newUserPromotions:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Dados inválidos
+ *       401:
+ *         description: Token inválido
+ *       404:
+ *         description: Arquivo não encontrado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post('/vincular-usuarios',
+  authenticateToken,
+  asyncHandler(csvController.vincularUsuarios)
+);
+
+/**
+ * @swagger
  * /insercao/validate:
  *   post:
  *     summary: Validação de arquivo CSV

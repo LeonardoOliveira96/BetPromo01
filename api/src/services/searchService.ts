@@ -202,7 +202,7 @@ export class SearchService {
         throw new AppError('Tipo de busca inválido', 400, 'INVALID_SEARCH_TYPE');
       }
 
-      // Query para buscar o usuário com suas promoções ativas
+      // Query para buscar o usuário com todas as suas promoções
       const userQuery = `
         SELECT 
           u.smartico_user_id,
@@ -217,7 +217,7 @@ export class SearchService {
             ARRAY_AGG(
               DISTINCT p.nome
               ORDER BY p.nome
-            ) FILTER (WHERE p.nome IS NOT NULL AND up.data_fim >= CURRENT_DATE),
+            ) FILTER (WHERE p.nome IS NOT NULL),
             ARRAY[]::text[]
           ) as current_promotions
         FROM usuarios_final u
@@ -235,14 +235,29 @@ export class SearchService {
           u.updated_at
       `;
 
+      console.log('🔍 SearchService - Query executada:', userQuery);
+      console.log('🔍 SearchService - Parâmetros:', queryParams);
+      
       const result = await query(userQuery, queryParams);
+      
+      console.log('🔍 SearchService - Resultado da query:', {
+        rowCount: result.rows.length,
+        firstRow: result.rows[0]
+      });
 
       if (result.rows.length === 0) {
         throw new AppError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
       }
 
       const user = result.rows[0];
-      return {
+      
+      console.log('🔍 SearchService - Promoções encontradas:', {
+        userId: user.smartico_user_id,
+        promotions: user.current_promotions,
+        promotionsCount: user.current_promotions ? user.current_promotions.length : 0
+      });
+      
+      const userData = {
         _id: `user_${user.smartico_user_id}`,
         smartico_user_id: user.smartico_user_id,
         user_ext_id: user.user_ext_id,
@@ -254,6 +269,10 @@ export class SearchService {
         created_at: user.created_at,
         updated_at: user.updated_at
       };
+      
+      console.log('🔍 SearchService - Dados finais retornados:', userData);
+      
+      return userData;
 
     } catch (error) {
       console.error('Erro ao buscar usuário por ID:', error);

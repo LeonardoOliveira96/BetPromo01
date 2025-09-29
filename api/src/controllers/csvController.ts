@@ -16,34 +16,56 @@ export class CSVController {
 
   /**
    * POST /insercao
-   * Recebe upload de arquivo CSV e processa dados
+   * Recebe upload de arquivo CSV e processa APENAS usuários
    * @param req - Request com arquivo CSV
-   * @param res - Response com resultado da importação
+   * @param res - Response com resultado da importação (apenas usuários)
    */
   insercao = async (req: Request, res: Response): Promise<void> => {
     try {
+      console.log('🎯 CONTROLLER - Requisição recebida (processamento de usuários):', {
+        method: req.method,
+        url: req.url,
+        hasFile: !!req.file,
+        bodyKeys: Object.keys(req.body),
+        body: req.body
+      });
+
       // Verifica se arquivo foi enviado
       if (!req.file) {
         throw new AppError('Nenhum arquivo foi enviado', 400, 'NO_FILE');
       }
 
-      console.log('Iniciando processamento do arquivo:', req.file.filename);
+      console.log('📁 CONTROLLER - Arquivo recebido:', {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
 
-      // Processa arquivo CSV
+      // Processa arquivo CSV (apenas usuários)
       const result = await this.csvService.processarCSV(req.file);
 
       // Prepara resposta de sucesso
       const response: InsercaoResponseDTO = {
         success: true,
-        data: result.data,
+        data: {
+          filename: req.file.filename,
+          totalRows: result.data?.totalRows ?? 0,
+          processedRows: result.data?.processedRows ?? 0,
+          newUsers: result.data?.newUsers ?? 0,
+          newPromotions: result.data?.newPromotions ?? 0,
+          newUserPromotions: result.data?.newUserPromotions ?? 0,
+          errors: result.data?.errors ?? []
+        },
         message: result.message
       };
 
       if (result.data) {
-        console.log('Processamento concluído:', {
+        console.log('Processamento de usuários concluído:', {
           filename: result.data.filename,
           totalRows: result.data.totalRows,
-          processedRows: result.data.processedRows
+          processedRows: result.data.processedRows,
+          newUsers: result.data.newUsers
         });
       } else {
         console.log('Processamento concluído, mas result.data está indefinido');
@@ -75,8 +97,79 @@ export class CSVController {
   };
 
   /**
-   * GET /insercao/historico
-   * Lista histórico de importações realizadas
+   * POST /vincular-usuarios
+   * Vincula usuários do CSV processado à uma promoção específica
+   * @param req - Request com filename e promotionName
+   * @param res - Response com resultado da vinculação
+   */
+  vincularUsuarios = async (req: Request, res: Response): Promise<void> => {
+    try {
+      console.log('🔗 CONTROLLER - Requisição de vinculação recebida:', {
+        method: req.method,
+        url: req.url,
+        body: req.body
+      });
+
+      const { filename, promotionName } = req.body;
+
+      // Validações
+      if (!filename) {
+        throw new AppError('Nome do arquivo é obrigatório', 400, 'FILENAME_REQUIRED');
+      }
+
+      if (!promotionName || !promotionName.trim()) {
+        throw new AppError('Nome da promoção é obrigatório', 400, 'PROMOTION_NAME_REQUIRED');
+      }
+
+      console.log('🔗 CONTROLLER - Parâmetros de vinculação:', {
+        filename,
+        promotionName: promotionName.trim()
+      });
+
+      // Vincula usuários à promoção
+      const result = await this.csvService.vincularUsuariosAPromocao(filename, promotionName.trim());
+
+      // Prepara resposta de sucesso
+      const response = {
+        success: true,
+        data: {
+          filename,
+          promotionName: promotionName.trim(),
+          newUserPromotions: result.newUserPromotions
+        },
+        message: `${result.newUserPromotions} usuários vinculados à promoção "${promotionName.trim()}" com sucesso`
+      };
+
+      console.log('🔗 CONTROLLER - Vinculação concluída:', response.data);
+
+      res.status(200).json(response);
+
+    } catch (error) {
+      console.error('❌ CONTROLLER - Erro na vinculação:', error);
+      
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: (error as any).code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Erro interno do servidor'
+          }
+        });
+      }
+    }
+  };
+
+  /**
+   * GET /historico
+   * Lista histórico de importações
    * @param req - Request
    * @param res - Response com lista de importações
    */

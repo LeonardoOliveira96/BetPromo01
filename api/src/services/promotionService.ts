@@ -42,12 +42,36 @@ export class PromotionService {
   }
 
   /**
-   * Criar nova promoção
+   * Verificar se promoção já existe pelo nome
+   */
+  async getPromotionByName(nome: string): Promise<Promocao | null> {
+    const client = await this.db.connect();
+    
+    try {
+      const query = 'SELECT * FROM promocoes WHERE nome = $1';
+      const result = await client.query(query, [nome]);
+      return result.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Criar nova promoção ou retornar existente se já existe
    */
   async createPromotion(data: CreatePromotionData): Promise<Promocao> {
     const client = await this.db.connect();
     
     try {
+      // Verificar se promoção já existe
+      const existingPromotion = await this.getPromotionByName(data.nome);
+      
+      if (existingPromotion) {
+        console.log(`🔄 Promoção "${data.nome}" já existe, retornando existente:`, existingPromotion);
+        return existingPromotion;
+      }
+
+      // Criar nova promoção se não existe
       const query = `
         INSERT INTO promocoes (nome, regras, data_inicio, data_fim, status)
         VALUES ($1, $2, $3, $4, $5)
@@ -63,6 +87,7 @@ export class PromotionService {
       ];
 
       const result = await client.query(query, values);
+      console.log(`✅ Nova promoção "${data.nome}" criada:`, result.rows[0]);
       return result.rows[0];
     } finally {
       client.release();

@@ -33,16 +33,16 @@ export class CSVService {
   }
 
   /**
-   * Processa arquivo CSV e importa dados para o banco
+   * Processa arquivo CSV e importa APENAS usuários para o banco
    * @param file - Arquivo CSV enviado
-   * @returns Resultado da importação
+   * @returns Resultado da importação (apenas usuários)
    */
   async processarCSV(file: Express.Multer.File): Promise<InsercaoResponseDTO> {
     const filename = file.filename;
     const filePath = path.join(this.uploadDir, filename);
     
     try {
-      console.log(`🚀 Iniciando processamento do CSV: ${filename}`);
+      console.log(`🚀 Iniciando processamento do CSV (apenas usuários): ${filename}`);
       console.log(`📁 Caminho do arquivo: ${filePath}`);
       
       // Valida o arquivo
@@ -55,10 +55,10 @@ export class CSVService {
       const csvData = await this.readCSVFile(filePath);
       console.log(`📊 CSV processado: ${csvData.length} linhas válidas`);
       
-      // Processa os dados em transação
-      console.log(`🔄 Iniciando processamento dos dados em transação...`);
-      const stats = await this.processDataInTransaction(csvData, filename);
-      console.log(`✅ Processamento concluído:`, stats);
+      // Processa APENAS os usuários em transação
+      console.log(`🔄 Iniciando processamento dos usuários em transação...`);
+      const stats = await this.processUsersOnlyInTransaction(csvData, filename);
+      console.log(`✅ Processamento de usuários concluído:`, stats);
 
       // Remove arquivo temporário
       console.log(`🗑️ Removendo arquivo temporário...`);
@@ -71,11 +71,11 @@ export class CSVService {
           totalRows: stats.totalRows,
           processedRows: stats.processedRows,
           newUsers: stats.newUsers,
-          newPromotions: stats.newPromotions,
-          newUserPromotions: stats.newUserPromotions,
+          newPromotions: 0, // Não cria promoções nesta etapa
+          newUserPromotions: 0, // Não vincula usuários nesta etapa
           errors: stats.errors
         },
-        message: `Importação concluída: ${stats.processedRows}/${stats.totalRows} registros processados`
+        message: `Usuários processados: ${stats.processedRows}/${stats.totalRows} registros, ${stats.newUsers} novos usuários adicionados`
       };
 
     } catch (error) {
@@ -93,6 +93,65 @@ export class CSVService {
       
       console.log(`🆕 Criando novo AppError para erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       throw new AppError('Erro interno no processamento do CSV', 500, 'CSV_PROCESSING_ERROR');
+    }
+  }
+
+  /**
+   * Vincula usuários do CSV à uma promoção específica
+   * @param filename - Nome do arquivo CSV processado
+   * @param promotionName - Nome da promoção para vincular os usuários
+   * @returns Resultado da vinculação
+   */
+  async vincularUsuariosAPromocao(filename: string, promotionName: string): Promise<{ newUserPromotions: number }> {
+    try {
+      console.log(`🔗 Iniciando vinculação de usuários do arquivo ${filename} à promoção: ${promotionName}`);
+      
+      const stats = await transaction(async (client) => {
+        // Verifica se existe dados staging para este arquivo
+        const stagingCheck = await client.query(`
+          SELECT COUNT(*) as count 
+          FROM staging_import 
+          WHERE filename = $1 AND processed = false
+        `, [filename]);
+
+        if (parseInt(stagingCheck.rows[0].count) === 0) {
+          throw new AppError('Arquivo CSV não encontrado ou já processado', 400, 'CSV_NOT_FOUND');
+        }
+
+        // Atualiza o nome da promoção na staging
+        await client.query(`
+          UPDATE staging_import 
+          SET promocao_nome = $1 
+          WHERE filename = $2
+        `, [promotionName, filename]);
+
+        // Cria a promoção
+        const newPromotions = await this.createPromocoes(client, filename);
+
+        // Vincula usuários à promoção
+        const newUserPromotions = await this.linkUsuarioPromocoes(client, filename);
+
+        // Registra no histórico
+        await this.insertHistorico(client, filename);
+
+        // Marca como processado
+        await this.markAsProcessed(client, filename);
+
+        return { newPromotions, newUserPromotions };
+      });
+
+      console.log(`✅ Vinculação concluída: ${stats.newUserPromotions} usuários vinculados à promoção`);
+      
+      return { newUserPromotions: stats.newUserPromotions };
+
+    } catch (error) {
+      console.error('❌ Erro na vinculação de usuários à promoção:', error);
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      
+      throw new AppError('Erro interno na vinculação de usuários', 500, 'USER_PROMOTION_LINK_ERROR');
     }
   }
 
@@ -273,9 +332,41 @@ export class CSVService {
    * Processa dados em uma transação
    * @param csvData - Dados do CSV
    * @param filename - Nome do arquivo
+   * @param promotionName - Nome da promoção fornecido pelo usuário (opcional)
    * @returns Estatísticas da importação
    */
-  private async processDataInTransaction(csvData: CSVRowData[], filename: string): Promise<ImportStats> {
+  /**
+   * Processa apenas usuários em transação (sem criar promoções ou vincular)
+   * @param csvData - Dados do CSV
+   * @param filename - Nome do arquivo
+   * @returns Estatísticas do processamento
+   */
+  private async processUsersOnlyInTransaction(csvData: CSVRowData[], filename: string): Promise<ImportStats> {
+    return await transaction(async (client) => {
+      const stats: ImportStats = {
+        totalRows: csvData.length,
+        processedRows: 0,
+        newUsers: 0,
+        newPromotions: 0,
+        newUserPromotions: 0,
+        errors: []
+      };
+
+      // 1. Insere dados na tabela staging (sem promotionName por enquanto)
+      await this.insertToStaging(client, csvData, filename, null);
+
+      // 2. Merge na tabela usuarios_final
+      stats.newUsers = await this.mergeUsuarios(client, filename);
+
+      // NÃO cria promoções nem vincula usuários nesta etapa
+      // Os dados ficam na staging aguardando a criação da promoção
+
+      stats.processedRows = csvData.length;
+      return stats;
+    });
+  }
+
+  private async processDataInTransaction(csvData: CSVRowData[], filename: string, promotionName?: string | null): Promise<ImportStats> {
     return await transaction(async (client) => {
       const stats: ImportStats = {
         totalRows: csvData.length,
@@ -287,7 +378,7 @@ export class CSVService {
       };
 
       // 1. Insere dados na tabela staging
-      await this.insertToStaging(client, csvData, filename);
+      await this.insertToStaging(client, csvData, filename, promotionName);
 
       // 2. Merge na tabela usuarios_final
       stats.newUsers = await this.mergeUsuarios(client, filename);
@@ -314,12 +405,27 @@ export class CSVService {
    * @param client - Cliente da transação
    * @param csvData - Dados para inserir
    * @param filename - Nome do arquivo
+   * @param promotionName - Nome da promoção fornecido pelo usuário (opcional)
    */
-  private async insertToStaging(client: any, csvData: CSVRowData[], filename: string): Promise<void> {
+  private async insertToStaging(client: any, csvData: CSVRowData[], filename: string, promotionName?: string | null): Promise<void> {
     const batchSize = 5000; // Processa 5000 registros por vez para máxima performance
     const totalRows = csvData.length;
     
     console.log(`🚀 Iniciando inserção em lote de ${totalRows} registros (${batchSize} por lote)`);
+    
+    console.log(`🔍 DEBUG - promotionName recebido:`, {
+      promotionName,
+      type: typeof promotionName,
+      length: promotionName?.length,
+      trimmed: promotionName?.trim(),
+      isEmpty: !promotionName || !promotionName.trim()
+    });
+    
+    if (promotionName && promotionName.trim()) {
+      console.log(`🎯 Usando nome de promoção fornecido: "${promotionName.trim()}"`);
+    } else {
+      console.log(`⚠️ Nenhum nome de promoção válido fornecido, usando valores do CSV ou padrão`);
+    }
     
     for (let i = 0; i < totalRows; i += batchSize) {
       const batch = csvData.slice(i, i + batchSize);
@@ -336,6 +442,22 @@ export class CSVService {
         const baseIndex = index * 11;
         placeholders.push(`($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5}, $${baseIndex + 6}, $${baseIndex + 7}, $${baseIndex + 8}, $${baseIndex + 9}, $${baseIndex + 10}, $${baseIndex + 11})`);
         
+        // Prioriza o nome da promoção fornecido pelo usuário, senão usa o valor do CSV ou padrão
+        const finalPromotionName = promotionName && promotionName.trim() 
+          ? promotionName.trim() 
+          : (row.promocao_nome || `Promoção Padrão ${row.crm_brand_name}`);
+        
+        // Log detalhado para o primeiro registro de cada lote
+        if (index === 0) {
+          console.log(`🔍 LOTE ${currentBatch} - Processamento de promoção:`, {
+            promotionNameFromUser: promotionName,
+            promotionNameFromCSV: row.promocao_nome,
+            finalPromotionName: finalPromotionName,
+            smarticoUserId: row.smartico_user_id,
+            brandName: row.crm_brand_name
+          });
+        }
+        
         values.push(
           row.smartico_user_id,
           row.user_ext_id,
@@ -343,7 +465,7 @@ export class CSVService {
           row.crm_brand_id,
           row.ext_brand_id,
           row.crm_brand_name,
-          row.promocao_nome,
+          finalPromotionName,
           row.regras,
           row.data_inicio,
           row.data_fim,
@@ -401,6 +523,19 @@ export class CSVService {
    * @returns Número de novas promoções
    */
   private async createPromocoes(client: any, filename: string): Promise<number> {
+    console.log(`🎯 Iniciando criação de promoções para arquivo: ${filename}`);
+    
+    // Primeiro, vamos ver quais promoções estão na staging
+    const stagingPromotions = await client.query(`
+      SELECT DISTINCT promocao_nome, COUNT(*) as count
+      FROM staging_import 
+      WHERE filename = $1 
+        AND promocao_nome IS NOT NULL
+      GROUP BY promocao_nome
+    `, [filename]);
+    
+    console.log(`📋 Promoções encontradas na staging:`, stagingPromotions.rows);
+    
     const result = await client.query(`
       INSERT INTO promocoes (nome, regras, data_inicio, data_fim, status)
       SELECT 
@@ -418,7 +553,11 @@ export class CSVService {
         data_inicio = COALESCE(EXCLUDED.data_inicio, promocoes.data_inicio),
         data_fim = COALESCE(EXCLUDED.data_fim, promocoes.data_fim),
         updated_at = NOW()
+      RETURNING nome, promocao_id
     `, [filename]);
+
+    console.log(`✅ Promoções criadas/atualizadas:`, result.rows);
+    console.log(`📊 Total de promoções processadas: ${result.rowCount || 0}`);
 
     return result.rowCount || 0;
   }
@@ -430,6 +569,50 @@ export class CSVService {
    * @returns Número de novos vínculos
    */
   private async linkUsuarioPromocoes(client: any, filename: string): Promise<number> {
+    console.log(`🔗 Iniciando vinculação de usuários para arquivo: ${filename}`);
+    
+    // Primeiro, vamos ver quais usuários estão sendo processados
+    const usersToProcess = await client.query(`
+      SELECT DISTINCT smartico_user_id, promocao_nome
+      FROM staging_import 
+      WHERE filename = $1
+      ORDER BY smartico_user_id
+    `, [filename]);
+    
+    console.log(`👥 Usuários a serem processados:`, usersToProcess.rows);
+    
+    // Verificar vinculações atuais desses usuários
+    const currentLinks = await client.query(`
+      SELECT up.smartico_user_id, p.nome as promocao_nome, up.status
+      FROM usuario_promocao up
+      JOIN promocoes p ON up.promocao_id = p.promocao_id
+      WHERE up.smartico_user_id IN (
+        SELECT DISTINCT smartico_user_id 
+        FROM staging_import 
+        WHERE filename = $1
+      )
+      AND up.status = 'active'
+    `, [filename]);
+    
+    console.log(`🔗 Vinculações atuais dos usuários:`, currentLinks.rows);
+    
+    // Primeiro, desativa vinculações antigas do usuário para outras promoções
+    // se ele está sendo vinculado a uma nova promoção
+    const deactivateResult = await client.query(`
+      UPDATE usuario_promocao 
+      SET status = 'inactive', updated_at = NOW()
+      WHERE smartico_user_id IN (
+        SELECT DISTINCT s.smartico_user_id 
+        FROM staging_import s
+        WHERE s.filename = $1
+      )
+      AND status = 'active'
+      RETURNING smartico_user_id, promocao_id
+    `, [filename]);
+
+    console.log(`🔄 Desativadas ${deactivateResult.rowCount || 0} vinculações antigas:`, deactivateResult.rows);
+
+    // Agora cria as novas vinculações
     const result = await client.query(`
       INSERT INTO usuario_promocao (
         smartico_user_id, promocao_id, data_inicio, data_fim, regras, status
@@ -445,8 +628,31 @@ export class CSVService {
       JOIN promocoes p ON s.promocao_nome = p.nome
       WHERE s.filename = $1
       GROUP BY s.smartico_user_id, p.promocao_id
-      ON CONFLICT (smartico_user_id, promocao_id) DO NOTHING
+      ON CONFLICT (smartico_user_id, promocao_id) DO UPDATE SET
+        data_inicio = EXCLUDED.data_inicio,
+        data_fim = EXCLUDED.data_fim,
+        regras = EXCLUDED.regras,
+        status = 'active',
+        updated_at = NOW()
+      RETURNING smartico_user_id, promocao_id
     `, [filename]);
+
+    console.log(`✅ Criadas/atualizadas ${result.rowCount || 0} vinculações:`, result.rows);
+    
+    // Verificar o resultado final
+    const finalLinks = await client.query(`
+      SELECT up.smartico_user_id, p.nome as promocao_nome, up.status
+      FROM usuario_promocao up
+      JOIN promocoes p ON up.promocao_id = p.promocao_id
+      WHERE up.smartico_user_id IN (
+        SELECT DISTINCT smartico_user_id 
+        FROM staging_import 
+        WHERE filename = $1
+      )
+      AND up.status = 'active'
+    `, [filename]);
+    
+    console.log(`🎯 Vinculações finais ativas:`, finalLinks.rows);
 
     return result.rowCount || 0;
   }

@@ -31,8 +31,6 @@ interface UploadResult {
     totalRows: number;
     processedRows: number;
     newUsers: number;
-    newPromotions: number;
-    newUserPromotions: number;
     errors: string[];
     filename: string;
     userIds?: string[];
@@ -129,19 +127,33 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
 
     addLog('info', `Processando arquivo: ${csvFile.name}`);
 
-    const formData = new FormData();
-    formData.append('file', csvFile);
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', csvFile);
+
+    // Log do FormData completo
+    console.log('📤 FRONTEND - FormData sendo enviado:');
+    for (const [key, value] of uploadFormData.entries()) {
+      console.log(`   ${key}:`, value);
+    }
 
     try {
       addLog('info', 'Enviando arquivo para o servidor...');
       setUploadProgress(10);
+
+      console.log('🚀 FRONTEND - Enviando requisição para API...');
 
       const response = await fetch('http://localhost:3000/api/insercao', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${TokenStorage.getToken()}`
         },
-        body: formData,
+        body: uploadFormData,
+      });
+
+      console.log('📥 FRONTEND - Resposta recebida:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
       setUploadProgress(50);
@@ -153,11 +165,14 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
       }
 
       const data: UploadResult = await response.json();
+      console.log('📊 FRONTEND - Dados da resposta:', JSON.stringify(data, null, 2));
+
       setUploadProgress(100);
 
       if (data.success) {
         setUploadResult(data);
         addLog('success', 'Arquivo processado com sucesso!');
+        console.log('✅ FRONTEND - Upload bem-sucedido:', data.data);
 
         if (data.data) {
           addLog('info', `Total de linhas: ${data.data.totalRows.toLocaleString()}`);
@@ -306,7 +321,8 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
       data_fim: endDateTime.toISOString(),
       status: isScheduled && formData.scheduleActivation ? 'scheduled' : (formData.status ? 'active' : 'inactive'),
       targetUserIds: csvUserIds.length > 0 ? csvUserIds : undefined,
-      scheduleActivation: formData.scheduleActivation
+      scheduleActivation: formData.scheduleActivation,
+      csvFilename: uploadResult?.data?.filename || undefined
     };
 
     try {
@@ -388,7 +404,7 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
             Criar Nova Promoção
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-2">
-            Siga os passos: 1) Upload do CSV (opcional), 2) Dados da promoção, 3) Criar promoção
+            Siga os passos: 1) Upload do CSV para adicionar usuários (opcional), 2) Dados da promoção, 3) Criar promoção e vincular usuários
           </p>
         </CardHeader>
         <CardContent>
@@ -413,7 +429,7 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
                       <Upload className="mx-auto h-12 w-12 text-gray-400" />
                       <h4 className="mt-2 text-lg font-medium">Upload CSV</h4>
                       <p className="text-sm text-muted-foreground">
-                        Carregue um arquivo CSV para associar usuários automaticamente
+                        Carregue um arquivo CSV para adicionar novos usuários ao sistema
                       </p>
                     </div>
 

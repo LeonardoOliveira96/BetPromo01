@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PromotionService } from '../services/promotionService';
+import { CSVService } from '../services/csvService';
 import { z } from 'zod';
 
 /**
@@ -12,7 +13,8 @@ const createPromotionSchema = z.object({
   data_fim: z.string().datetime().optional(),
   status: z.enum(['active', 'inactive', 'scheduled']).default('active'),
   targetUserIds: z.array(z.number()).optional(),
-  scheduleActivation: z.boolean().default(false)
+  scheduleActivation: z.boolean().default(false),
+  csvFilename: z.string().optional()
 });
 
 /**
@@ -30,9 +32,11 @@ const listPromotionsSchema = z.object({
  */
 export class PromotionController {
   private promotionService: PromotionService;
+  private csvService: CSVService;
 
   constructor() {
     this.promotionService = new PromotionService();
+    this.csvService = new CSVService();
   }
 
   /**
@@ -79,6 +83,19 @@ export class PromotionController {
           promotionData.data_fim,
           promotionData.regras
         );
+      }
+
+      // Se há um arquivo CSV, vincular os usuários do CSV à promoção
+      if (validatedData.csvFilename) {
+        try {
+          await this.csvService.vincularUsuariosAPromocao(
+            validatedData.csvFilename,
+            validatedData.nome
+          );
+        } catch (csvError) {
+          console.error('Erro ao vincular usuários do CSV:', csvError);
+          // Não falha a criação da promoção, apenas registra o erro
+        }
       }
 
       res.status(201).json({

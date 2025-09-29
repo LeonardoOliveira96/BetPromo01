@@ -12,6 +12,16 @@ const createPromotionSchema = z.object({
   data_inicio: z.string().datetime().optional(),
   data_fim: z.string().datetime().optional(),
   status: z.enum(['active', 'inactive', 'scheduled']).default('active'),
+  marca: z.string().optional(),
+  tipo: z.string().optional(),
+  notifications: z.object({
+    sms: z.boolean().default(false),
+    email: z.boolean().default(false),
+    popup: z.boolean().default(false),
+    push: z.boolean().default(false),
+    whatsapp: z.boolean().default(false),
+    telegram: z.boolean().default(false)
+  }).optional(),
   targetUserIds: z.array(z.number()).optional(),
   scheduleActivation: z.boolean().default(false),
   csvFilename: z.string().optional()
@@ -46,11 +56,21 @@ export class PromotionController {
     try {
       const validatedData = createPromotionSchema.parse(req.body);
       
-      // Converter strings de data para Date objects
+      // Converter strings de data para Date objects e processar notificações
       const promotionData = {
-        ...validatedData,
+        nome: validatedData.nome,
+        regras: validatedData.regras,
         data_inicio: validatedData.data_inicio ? new Date(validatedData.data_inicio) : undefined,
-        data_fim: validatedData.data_fim ? new Date(validatedData.data_fim) : undefined
+        data_fim: validatedData.data_fim ? new Date(validatedData.data_fim) : undefined,
+        status: validatedData.status,
+        marca: validatedData.marca,
+        tipo: validatedData.tipo,
+        notification_sms: validatedData.notifications?.sms || false,
+        notification_email: validatedData.notifications?.email || false,
+        notification_popup: validatedData.notifications?.popup || false,
+        notification_push: validatedData.notifications?.push || false,
+        notification_whatsapp: validatedData.notifications?.whatsapp || false,
+        notification_telegram: validatedData.notifications?.telegram || false
       };
 
       // Validar datas
@@ -213,11 +233,21 @@ export class PromotionController {
 
       const validatedData = createPromotionSchema.parse(req.body);
       
-      // Converter strings de data para Date objects
+      // Converter strings de data para Date objects e processar notificações
       const promotionData = {
-        ...validatedData,
+        nome: validatedData.nome,
+        regras: validatedData.regras,
         data_inicio: validatedData.data_inicio ? new Date(validatedData.data_inicio) : undefined,
-        data_fim: validatedData.data_fim ? new Date(validatedData.data_fim) : undefined
+        data_fim: validatedData.data_fim ? new Date(validatedData.data_fim) : undefined,
+        status: validatedData.status,
+        marca: validatedData.marca,
+        tipo: validatedData.tipo,
+        notification_sms: validatedData.notifications?.sms || false,
+        notification_email: validatedData.notifications?.email || false,
+        notification_popup: validatedData.notifications?.popup || false,
+        notification_push: validatedData.notifications?.push || false,
+        notification_whatsapp: validatedData.notifications?.whatsapp || false,
+        notification_telegram: validatedData.notifications?.telegram || false
       };
 
       // Validar datas

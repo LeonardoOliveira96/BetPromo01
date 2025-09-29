@@ -11,6 +11,14 @@ interface CreatePromotionData {
   data_inicio?: Date;
   data_fim?: Date;
   status: 'active' | 'inactive' | 'scheduled';
+  marca?: string;
+  tipo?: string;
+  notification_sms?: boolean;
+  notification_email?: boolean;
+  notification_popup?: boolean;
+  notification_push?: boolean;
+  notification_whatsapp?: boolean;
+  notification_telegram?: boolean;
 }
 
 /**
@@ -73,8 +81,12 @@ export class PromotionService {
 
       // Criar nova promoção se não existe
       const query = `
-        INSERT INTO promocoes (nome, regras, data_inicio, data_fim, status)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO promocoes (
+          nome, regras, data_inicio, data_fim, status, marca, tipo,
+          notification_sms, notification_email, notification_popup, 
+          notification_push, notification_whatsapp, notification_telegram
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `;
       
@@ -83,7 +95,15 @@ export class PromotionService {
         data.regras || null,
         data.data_inicio || null,
         data.data_fim || null,
-        data.status
+        data.status,
+        data.marca || null,
+        data.tipo || null,
+        data.notification_sms || false,
+        data.notification_email || false,
+        data.notification_popup || false,
+        data.notification_push || false,
+        data.notification_whatsapp || false,
+        data.notification_telegram || false
       ];
 
       const result = await client.query(query, values);
@@ -213,6 +233,54 @@ export class PromotionService {
       if (data.status !== undefined) {
         fields.push(`status = $${paramIndex}`);
         values.push(data.status);
+        paramIndex++;
+      }
+
+      if (data.marca !== undefined) {
+        fields.push(`marca = $${paramIndex}`);
+        values.push(data.marca);
+        paramIndex++;
+      }
+
+      if (data.tipo !== undefined) {
+        fields.push(`tipo = $${paramIndex}`);
+        values.push(data.tipo);
+        paramIndex++;
+      }
+
+      if (data.notification_sms !== undefined) {
+        fields.push(`notification_sms = $${paramIndex}`);
+        values.push(data.notification_sms);
+        paramIndex++;
+      }
+
+      if (data.notification_email !== undefined) {
+        fields.push(`notification_email = $${paramIndex}`);
+        values.push(data.notification_email);
+        paramIndex++;
+      }
+
+      if (data.notification_popup !== undefined) {
+        fields.push(`notification_popup = $${paramIndex}`);
+        values.push(data.notification_popup);
+        paramIndex++;
+      }
+
+      if (data.notification_push !== undefined) {
+        fields.push(`notification_push = $${paramIndex}`);
+        values.push(data.notification_push);
+        paramIndex++;
+      }
+
+      if (data.notification_whatsapp !== undefined) {
+        fields.push(`notification_whatsapp = $${paramIndex}`);
+        values.push(data.notification_whatsapp);
+        paramIndex++;
+      }
+
+      if (data.notification_telegram !== undefined) {
+        fields.push(`notification_telegram = $${paramIndex}`);
+        values.push(data.notification_telegram);
         paramIndex++;
       }
 

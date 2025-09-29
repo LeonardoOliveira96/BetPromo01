@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
@@ -53,7 +54,15 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
     targetAudience: 'all',
     targetClientIds: '',
     status: true,
-    scheduleActivation: false
+    scheduleActivation: false,
+    notifications: {
+      sms: false,
+      email: false,
+      popup: false,
+      push: false,
+      whatsapp: false,
+      telegram: false
+    }
   });
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [startTime, setStartTime] = useState('09:00');
@@ -316,13 +325,17 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
 
     const promotionData = {
       nome: formData.name,
+      descricao: formData.description,
+      marca: formData.brand,
+      tipo: formData.type,
       regras: formData.rules || undefined,
       data_inicio: startDateTime.toISOString(),
       data_fim: endDateTime.toISOString(),
       status: isScheduled && formData.scheduleActivation ? 'scheduled' : (formData.status ? 'active' : 'inactive'),
       targetUserIds: csvUserIds.length > 0 ? csvUserIds : undefined,
       scheduleActivation: formData.scheduleActivation,
-      csvFilename: uploadResult?.data?.filename || undefined
+      csvFilename: uploadResult?.data?.filename || undefined,
+      notifications: formData.notifications
     };
 
     try {
@@ -376,9 +389,16 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
       targetAudience: 'all',
       targetClientIds: '',
       status: true,
-      scheduleActivation: false
+      scheduleActivation: false,
+      notifications: {
+        sms: false,
+        email: false,
+        popup: false,
+        push: false,
+        whatsapp: false,
+        telegram: false
+      }
     });
-    setDateRange({ from: undefined, to: undefined });
     setDateRange({ from: undefined, to: undefined });
     setStartTime('09:00');
     setEndTime('23:59');
@@ -596,13 +616,16 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
 
               <div className="space-y-2">
                 <Label htmlFor="brand">Marca *</Label>
-                <Input
-                  id="brand"
-                  placeholder="Ex: Casa de Apostas Premium"
-                  value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  required
-                />
+                <Select value={formData.brand} onValueChange={(value) => setFormData({ ...formData, brand: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a marca" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7k">7k</SelectItem>
+                    <SelectItem value="cassino">cassino</SelectItem>
+                    <SelectItem value="verabet">verabet</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -626,9 +649,10 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="deposit_bonus">Bônus de Depósito</SelectItem>
-                  <SelectItem value="cashback">Cashback</SelectItem>
-                  <SelectItem value="free_bet">Aposta Grátis</SelectItem>
+                  <SelectItem value="apostas_gratis">Apostas gratis</SelectItem>
+                  <SelectItem value="rodadas_gratis">Rodadas Gratis</SelectItem>
+                  <SelectItem value="apostas_esportivas">Apostas Esportivas</SelectItem>
+                  <SelectItem value="cassino_ao_vivo">Cassino ao vivo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -867,6 +891,103 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
               </div>
             </div>
 
+            {/* Seção de Notificações */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertCircle className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold">Canais de Notificação</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Selecione os canais onde a promoção será enviada/notificada aos usuários
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                  <Checkbox
+                    id="sms"
+                    checked={formData.notifications.sms}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        notifications: { ...formData.notifications, sms: checked as boolean }
+                      })
+                    }
+                  />
+                  <Label htmlFor="sms" className="cursor-pointer font-medium">SMS</Label>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                  <Checkbox
+                    id="email"
+                    checked={formData.notifications.email}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        notifications: { ...formData.notifications, email: checked as boolean }
+                      })
+                    }
+                  />
+                  <Label htmlFor="email" className="cursor-pointer font-medium">EMAIL</Label>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                  <Checkbox
+                    id="popup"
+                    checked={formData.notifications.popup}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        notifications: { ...formData.notifications, popup: checked as boolean }
+                      })
+                    }
+                  />
+                  <Label htmlFor="popup" className="cursor-pointer font-medium">POP UP</Label>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                  <Checkbox
+                    id="push"
+                    checked={formData.notifications.push}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        notifications: { ...formData.notifications, push: checked as boolean }
+                      })
+                    }
+                  />
+                  <Label htmlFor="push" className="cursor-pointer font-medium">PUSH</Label>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                  <Checkbox
+                    id="whatsapp"
+                    checked={formData.notifications.whatsapp}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        notifications: { ...formData.notifications, whatsapp: checked as boolean }
+                      })
+                    }
+                  />
+                  <Label htmlFor="whatsapp" className="cursor-pointer font-medium">WhatsApp</Label>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                  <Checkbox
+                    id="telegram"
+                    checked={formData.notifications.telegram}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        notifications: { ...formData.notifications, telegram: checked as boolean }
+                      })
+                    }
+                  />
+                  <Label htmlFor="telegram" className="cursor-pointer font-medium">Telegram</Label>
+                </div>
+              </div>
+            </div>
+
             {/* Passo 3: Criar Promoção */}
             <div className="pt-6 border-t">
               <div className="flex items-center gap-2 mb-4">
@@ -896,9 +1017,11 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
                       <div className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
                         <span className="text-muted-foreground font-medium">Tipo:</span>
                         <span className="font-semibold text-foreground">
-                          {formData.type === 'deposit_bonus' ? 'Bônus de Depósito' :
-                            formData.type === 'cashback' ? 'Cashback' :
-                              formData.type === 'free_bet' ? 'Aposta Grátis' : 'Não informado'}
+                          {formData.type === 'apostas_gratis' ? 'Apostas gratis' :
+                           formData.type === 'rodadas_gratis' ? 'Rodadas Gratis' :
+                           formData.type === 'apostas_esportivas' ? 'Apostas Esportivas' :
+                           formData.type === 'cassino_ao_vivo' ? 'Cassino ao vivo' :
+                           formData.type || 'Não informado'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">

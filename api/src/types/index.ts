@@ -43,6 +43,14 @@ export interface Promocao {
   data_inicio?: Date;
   data_fim?: Date;
   status: 'active' | 'inactive' | 'expired' | 'scheduled';
+  marca?: string;
+  tipo?: string;
+  notification_sms?: boolean;
+  notification_email?: boolean;
+  notification_popup?: boolean;
+  notification_push?: boolean;
+  notification_whatsapp?: boolean;
+  notification_telegram?: boolean;
   created_at: Date;
   updated_at: Date;
 }

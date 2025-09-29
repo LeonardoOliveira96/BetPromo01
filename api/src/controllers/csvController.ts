@@ -39,11 +39,15 @@ export class CSVController {
         message: result.message
       };
 
-      console.log('Processamento concluído:', {
-        filename: result.data.filename,
-        totalRows: result.data.totalRows,
-        processedRows: result.data.processedRows
-      });
+      if (result.data) {
+        console.log('Processamento concluído:', {
+          filename: result.data.filename,
+          totalRows: result.data.totalRows,
+          processedRows: result.data.processedRows
+        });
+      } else {
+        console.log('Processamento concluído, mas result.data está indefinido');
+      }
 
       res.status(200).json(response);
 
@@ -54,7 +58,7 @@ export class CSVController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: (error as any).code,
             message: error.message
           }
         });
@@ -97,7 +101,7 @@ export class CSVController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: (error as any).code,
             message: error.message
           }
         });
@@ -151,7 +155,7 @@ export class CSVController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: (error as any).code,
             message: error.message
           }
         });
@@ -200,7 +204,7 @@ export class CSVController {
         res.status(error.statusCode).json({
           success: false,
           error: {
-            code: error.code,
+            code: (error as any).code,
             message: error.message
           }
         });

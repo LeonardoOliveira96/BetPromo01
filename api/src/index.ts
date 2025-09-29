@@ -15,11 +15,11 @@ const PORT = process.env.PORT || 3000;
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 1000, // limit each IP to 1000 requests per minute (more permissive for development)
   message: {
     success: false,
-    message: 'Muitas tentativas. Tente novamente em 15 minutos.',
+    message: 'Muitas tentativas. Tente novamente em 1 minuto.',
     error: 'RATE_LIMIT_EXCEEDED'
   }
 });

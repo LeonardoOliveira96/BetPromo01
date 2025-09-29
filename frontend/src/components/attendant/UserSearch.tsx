@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, User, Calendar, Building, Hash, ExternalLink, ChevronLeft, ChevronRight, Plus, Eye, Clock, FileText } from 'lucide-react';
+import { Search, User, Calendar, Building, Hash, ExternalLink, ChevronLeft, ChevronRight, Plus, Eye, Clock, FileText, Tag, Bell, Mail, MessageSquare, Smartphone, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiService } from '@/lib/api';
 import { format } from 'date-fns';
@@ -49,6 +49,14 @@ interface PromotionDetails {
   status: 'active' | 'inactive' | 'expired' | 'scheduled';
   created_at: string;
   updated_at: string;
+  marca?: string;
+  tipo?: string;
+  notification_sms?: boolean;
+  notification_email?: boolean;
+  notification_popup?: boolean;
+  notification_push?: boolean;
+  notification_whatsapp?: boolean;
+  notification_telegram?: boolean;
 }
 
 export const UserSearch = () => {
@@ -205,7 +213,15 @@ export const UserSearch = () => {
           data_fim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           status: 'active',
           created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          marca: '7k',
+          tipo: 'Bônus de Depósito',
+          notification_sms: true,
+          notification_email: true,
+          notification_popup: false,
+          notification_push: true,
+          notification_whatsapp: false,
+          notification_telegram: true
         };
         setSelectedPromotion(mockPromotionDetails);
       }
@@ -221,7 +237,15 @@ export const UserSearch = () => {
         data_fim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'active',
         created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        marca: 'verabet',
+        tipo: 'Rodadas Grátis',
+        notification_sms: false,
+        notification_email: true,
+        notification_popup: true,
+        notification_push: false,
+        notification_whatsapp: true,
+        notification_telegram: false
       };
       setSelectedPromotion(mockPromotionDetails);
 
@@ -466,6 +490,68 @@ export const UserSearch = () => {
                     <p className="text-base font-medium text-foreground bg-muted/50 px-3 py-2 rounded-md mt-1">
                       {formatDate(selectedPromotion.data_fim)}
                     </p>
+                  </div>
+                </div>
+
+                {/* Informações da Marca e Tipo */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Building className="h-4 w-4" />
+                      Marca
+                    </Label>
+                    <p className="text-base font-medium text-foreground bg-muted/50 px-3 py-2 rounded-md mt-1">
+                      {selectedPromotion.marca || 'Não informado'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Tag className="h-4 w-4" />
+                      Tipo de Promoção
+                    </Label>
+                    <p className="text-base font-medium text-foreground bg-muted/50 px-3 py-2 rounded-md mt-1">
+                      {selectedPromotion.tipo || 'Não informado'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Notificações Enviadas */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-3">
+                    <Bell className="h-4 w-4" />
+                    Notificações Enviadas
+                  </Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_sms ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                      <Phone className="h-4 w-4" />
+                      <span className="text-sm font-medium">SMS</span>
+                      {selectedPromotion.notification_sms && <span className="text-xs">✓</span>}
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_email ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                      <Mail className="h-4 w-4" />
+                      <span className="text-sm font-medium">Email</span>
+                      {selectedPromotion.notification_email && <span className="text-xs">✓</span>}
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_popup ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="text-sm font-medium">Pop-up</span>
+                      {selectedPromotion.notification_popup && <span className="text-xs">✓</span>}
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_push ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                      <Smartphone className="h-4 w-4" />
+                      <span className="text-sm font-medium">Push</span>
+                      {selectedPromotion.notification_push && <span className="text-xs">✓</span>}
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_whatsapp ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm font-medium">WhatsApp</span>
+                      {selectedPromotion.notification_whatsapp && <span className="text-xs">✓</span>}
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_telegram ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm font-medium">Telegram</span>
+                      {selectedPromotion.notification_telegram && <span className="text-xs">✓</span>}
+                    </div>
                   </div>
                 </div>
 

@@ -180,6 +180,91 @@ export class SearchService {
   }
 
   /**
+   * Busca usuário por ID específico
+   * Retorna detalhes completos do usuário incluindo promoções ativas
+   */
+  async getUserById(userId: string, type: string = 'smartico_user_id'): Promise<any> {
+    try {
+      let whereCondition: string;
+      let queryParams: any[] = [];
+
+      if (type === 'smartico_user_id') {
+        const numericId = parseInt(userId);
+        if (isNaN(numericId)) {
+          throw new AppError('ID inválido para smartico_user_id', 400, 'INVALID_ID');
+        }
+        whereCondition = 'u.smartico_user_id = $1';
+        queryParams.push(numericId);
+      } else if (type === 'user_ext_id') {
+        whereCondition = 'u.user_ext_id = $1';
+        queryParams.push(userId);
+      } else {
+        throw new AppError('Tipo de busca inválido', 400, 'INVALID_SEARCH_TYPE');
+      }
+
+      // Query para buscar o usuário com suas promoções ativas
+      const userQuery = `
+        SELECT 
+          u.smartico_user_id,
+          u.user_ext_id,
+          u.core_sm_brand_id,
+          u.crm_brand_id,
+          u.ext_brand_id,
+          u.crm_brand_name,
+          u.created_at,
+          u.updated_at,
+          COALESCE(
+            ARRAY_AGG(
+              DISTINCT p.nome
+              ORDER BY p.nome
+            ) FILTER (WHERE p.nome IS NOT NULL AND up.data_fim >= CURRENT_DATE),
+            ARRAY[]::text[]
+          ) as current_promotions
+        FROM usuarios_final u
+        LEFT JOIN usuario_promocao up ON u.smartico_user_id = up.smartico_user_id
+        LEFT JOIN promocoes p ON up.promocao_id = p.promocao_id
+        WHERE ${whereCondition}
+        GROUP BY 
+          u.smartico_user_id,
+          u.user_ext_id,
+          u.core_sm_brand_id,
+          u.crm_brand_id,
+          u.ext_brand_id,
+          u.crm_brand_name,
+          u.created_at,
+          u.updated_at
+      `;
+
+      const result = await query(userQuery, queryParams);
+
+      if (result.rows.length === 0) {
+        throw new AppError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+      }
+
+      const user = result.rows[0];
+      return {
+        _id: `user_${user.smartico_user_id}`,
+        smartico_user_id: user.smartico_user_id,
+        user_ext_id: user.user_ext_id,
+        core_sm_brand_id: user.core_sm_brand_id,
+        crm_brand_id: user.crm_brand_id,
+        ext_brand_id: user.ext_brand_id,
+        crm_brand_name: user.crm_brand_name,
+        current_promotions: user.current_promotions || [],
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      };
+
+    } catch (error) {
+      console.error('Erro ao buscar usuário por ID:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Erro ao buscar usuário', 500, 'GET_USER_ERROR');
+    }
+  }
+
+  /**
    * Busca rápida para autocomplete
    * Limitada a 10 resultados para performance
    */

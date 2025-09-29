@@ -74,6 +74,59 @@ export class SearchController {
   };
 
   /**
+   * GET /search/users/:id
+   * Busca usuário por ID específico
+   */
+  getUserById = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { type = 'smartico_user_id' } = req.query;
+
+      // Validação dos parâmetros
+      if (!id || !id.trim()) {
+        throw new AppError('ID do usuário é obrigatório', 400, 'MISSING_USER_ID');
+      }
+
+      const searchType = type as string;
+
+      // Validação do tipo de busca
+      if (!['smartico_user_id', 'user_ext_id'].includes(searchType)) {
+        throw new AppError('Tipo de busca inválido', 400, 'INVALID_SEARCH_TYPE');
+      }
+
+      // Buscar usuário por ID
+      const user = await this.searchService.getUserById(id.trim(), searchType);
+
+      res.status(200).json({
+        success: true,
+        data: user,
+        message: 'Usuário encontrado'
+      });
+
+    } catch (error) {
+      console.error('Erro ao buscar usuário por ID:', error);
+      
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: 'UNKNOWN_ERROR',
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Erro interno do servidor'
+          }
+        });
+      }
+    }
+  };
+
+  /**
    * GET /search/quick
    * Busca rápida para autocomplete
    */

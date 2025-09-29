@@ -74,6 +74,50 @@ router.get('/users', authenticateToken, asyncHandler(searchController.searchUser
 
 /**
  * @swagger
+ * /search/users/{id}:
+ *   get:
+ *     summary: Busca usuário por ID específico
+ *     description: Retorna detalhes completos de um usuário incluindo suas promoções ativas
+ *     tags: [Busca]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do usuário (smartico_user_id ou user_ext_id)
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [smartico_user_id, user_ext_id]
+ *           default: smartico_user_id
+ *         description: Tipo de ID fornecido
+ *     responses:
+ *       200:
+ *         description: Usuário encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/UserWithPromotions'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Usuário não encontrado
+ *       400:
+ *         description: Parâmetros inválidos
+ */
+router.get('/users/:id', authenticateToken, asyncHandler(searchController.getUserById));
+
+/**
+ * @swagger
  * /search/quick:
  *   get:
  *     summary: Busca rápida para autocomplete

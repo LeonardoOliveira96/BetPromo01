@@ -185,8 +185,22 @@ export const UserSearch = () => {
     setIsLoadingPromotion(true);
     setIsPromotionModalOpen(true);
 
+    console.log('🔍 Buscando detalhes da promoção:', promotionName);
+
+    // Verificar se há token de autenticação
+    const token = localStorage.getItem('auth_token_data');
+    console.log('🔐 Token disponível:', !!token);
+    if (token) {
+      try {
+        const tokenData = JSON.parse(token);
+        console.log('🕐 Token expira em:', new Date(tokenData.expiresAt));
+      } catch (e) {
+        console.log('❌ Erro ao parsear token');
+      }
+    }
+
     try {
-      // Buscar promoção por nome usando o endpoint de listagem com search
+      // Primeira tentativa: busca exata por nome
       const response = await apiService.get<{
         success: boolean;
         data: PromotionDetails[];
@@ -198,48 +212,124 @@ export const UserSearch = () => {
           hasNextPage: boolean;
           hasPrevPage: boolean;
         };
-      }>(`/promocoes?search=${encodeURIComponent(promotionName)}&limit=1`);
+      }>(`/promocoes?search=${encodeURIComponent(promotionName)}&limit=10`);
+
+      console.log('📊 Resposta da API:', response);
+
+      let foundPromotion = null;
 
       if (response.success && response.data.length > 0) {
-        const promotion = response.data[0];
-        setSelectedPromotion(promotion);
+        // Tentar encontrar uma correspondência exata primeiro
+        foundPromotion = response.data.find(promo => promo.nome === promotionName);
+
+        // Se não encontrar correspondência exata, usar a primeira que contenha o nome
+        if (!foundPromotion) {
+          foundPromotion = response.data.find(promo =>
+            promo.nome.toLowerCase().includes(promotionName.toLowerCase()) ||
+            promotionName.toLowerCase().includes(promo.nome.toLowerCase())
+          );
+        }
+
+        // Se ainda não encontrar, usar a primeira da lista
+        if (!foundPromotion) {
+          foundPromotion = response.data[0];
+        }
+      }
+
+      if (foundPromotion) {
+        console.log('✅ Promoção encontrada:', foundPromotion);
+        setSelectedPromotion(foundPromotion);
       } else {
-        // Se não encontrar via API, usar dados mock
-        const mockPromotionDetails: PromotionDetails = {
-          promocao_id: Math.floor(Math.random() * 1000),
-          nome: promotionName,
-          regras: "Esta é uma promoção especial com regras específicas. Válida para depósitos acima de R$ 100,00. Rollover de 5x o valor do bônus. Promoção válida apenas para novos usuários ou usuários que não utilizaram promoções nos últimos 30 dias.",
-          data_inicio: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          data_fim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'active',
-          created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-          marca: '7k',
-          tipo: 'Bônus de Depósito',
-          notification_sms: true,
-          notification_email: true,
-          notification_popup: false,
-          notification_push: true,
-          notification_whatsapp: false,
-          notification_telegram: true
-        };
-        setSelectedPromotion(mockPromotionDetails);
+        console.log('⚠️ Promoção não encontrada na API, tentando buscar todas as promoções...');
+
+        // Segunda tentativa: buscar todas as promoções e filtrar localmente
+        const allPromotionsResponse = await apiService.get<{
+          success: boolean;
+          data: PromotionDetails[];
+          pagination: {
+            currentPage: number;
+            totalPages: number;
+            totalCount: number;
+            limit: number;
+            hasNextPage: boolean;
+            hasPrevPage: boolean;
+          };
+        }>(`/promocoes?limit=100`);
+
+        console.log('📋 Todas as promoções:', allPromotionsResponse);
+
+        if (allPromotionsResponse.success && allPromotionsResponse.data.length > 0) {
+          const matchedPromotion = allPromotionsResponse.data.find(promo =>
+            promo.nome === promotionName ||
+            promo.nome.toLowerCase().includes(promotionName.toLowerCase()) ||
+            promotionName.toLowerCase().includes(promo.nome.toLowerCase())
+          );
+
+          if (matchedPromotion) {
+            console.log('✅ Promoção encontrada na segunda tentativa:', matchedPromotion);
+            setSelectedPromotion(matchedPromotion);
+          } else {
+            console.log('❌ Promoção não encontrada, usando dados mock');
+            // Se não encontrar via API, usar dados mock
+            const mockPromotionDetails: PromotionDetails = {
+              promocao_id: Math.floor(Math.random() * 1000),
+              nome: promotionName,
+              regras: "⚠️ DADOS MOCK - Esta promoção não foi encontrada no banco de dados. As datas e informações exibidas são fictícias para demonstração.",
+              data_inicio: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              data_fim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'active',
+              created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+              marca: '7k',
+              tipo: 'Dados Mock',
+              notification_sms: true,
+              notification_email: true,
+              notification_popup: false,
+              notification_push: true,
+              notification_whatsapp: false,
+              notification_telegram: true
+            };
+            setSelectedPromotion(mockPromotionDetails);
+          }
+        } else {
+          console.log('❌ Erro ao buscar todas as promoções, usando dados mock');
+          // Se não conseguir buscar, usar dados mock
+          const mockPromotionDetails: PromotionDetails = {
+            promocao_id: Math.floor(Math.random() * 1000),
+            nome: promotionName,
+            regras: "⚠️ DADOS MOCK - Erro ao conectar com o banco de dados. As datas e informações exibidas são fictícias.",
+            data_inicio: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            data_fim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'active',
+            created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+            marca: 'verabet',
+            tipo: 'Dados Mock',
+            notification_sms: false,
+            notification_email: true,
+            notification_popup: true,
+            notification_push: false,
+            notification_whatsapp: true,
+            notification_telegram: false
+          };
+          setSelectedPromotion(mockPromotionDetails);
+        }
       }
     } catch (error) {
-      console.error('Erro ao buscar detalhes da promoção:', error);
+      console.error('❌ Erro ao buscar detalhes da promoção:', error);
 
       // Em caso de erro, usar dados mock como fallback
       const mockPromotionDetails: PromotionDetails = {
         promocao_id: Math.floor(Math.random() * 1000),
         nome: promotionName,
-        regras: "Esta é uma promoção especial com regras específicas. Válida para depósitos acima de R$ 100,00. Rollover de 5x o valor do bônus. Promoção válida apenas para novos usuários ou usuários que não utilizaram promoções nos últimos 30 dias.",
+        regras: "⚠️ DADOS MOCK - Erro de conexão com a API. As datas e informações exibidas são fictícias.",
         data_inicio: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         data_fim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'active',
         created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
-        marca: 'verabet',
-        tipo: 'Rodadas Grátis',
+        marca: 'erro',
+        tipo: 'Dados Mock',
         notification_sms: false,
         notification_email: true,
         notification_popup: true,

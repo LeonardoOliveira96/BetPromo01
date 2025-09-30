@@ -1,6 +1,0 @@
-smartico_user_id,user_ext_id,core_sm_brand_id,crm_brand_id,ext_brand_id,crm_brand_name,promocao_nome,regras,data_inicio,data_fim
-123,user123,1,1,brand1,TestBrand,Promoção Teste,Regras da promoção,2024-01-01,2024-12-31
-456,user456,2,2,brand2,TestBrand2,Promoção Teste 2,Regras da promoção 2,2024-01-01,2024-12-31
-789,user789,1,1,brand1,TestBrand,Promoção Teste,Regras da promoção,2024-01-01,2024-12-31
-101,user101,2,2,brand2,TestBrand2,Promoção Teste 2,Regras diferentes,2024-02-01,2024-11-30
-102,user102,1,1,brand1,TestBrand,Promoção Teste,Outras regras,2024-01-15,2024-12-15

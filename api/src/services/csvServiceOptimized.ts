@@ -38,9 +38,6 @@ export class CSVServiceOptimized {
     const filePath = path.join(this.uploadDir, filename);
     
     try {
-      console.log(`🚀 Iniciando processamento otimizado do arquivo: ${filename}`);
-      console.log(`📊 Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-      
       // Valida o arquivo
       this.validateFile(file);
 
@@ -49,7 +46,6 @@ export class CSVServiceOptimized {
 
       // Remove arquivo IMEDIATAMENTE após processamento para economizar espaço
       this.cleanupFile(filePath);
-      console.log(`🗑️ Arquivo ${filename} removido para economizar espaço em disco`);
 
       return {
         success: true,
@@ -68,8 +64,6 @@ export class CSVServiceOptimized {
     } catch (error) {
       // Remove arquivo em caso de erro
       this.cleanupFile(filePath);
-      
-      console.error('❌ Erro no processamento otimizado do CSV:', error);
       
       if (error instanceof AppError) {
         throw error;
@@ -118,20 +112,13 @@ export class CSVServiceOptimized {
 
             // Processa batch quando atinge o tamanho máximo
             if (currentBatch.length >= this.BATCH_SIZE) {
-              console.log(`📦 Processando batch ${batchNumber} (${currentBatch.length} registros)`);
-              
               try {
                 const batchStats = await this.processBatchOptimized(currentBatch, filename);
                 this.mergeBatchStats(stats, batchStats);
                 
                 currentBatch = [];
                 batchNumber++;
-                
-                // Log de progresso
-                const progress = ((stats.processedRows / stats.totalRows) * 100).toFixed(1);
-                console.log(`✅ Progresso: ${progress}% (${stats.processedRows}/${stats.totalRows} registros)`);
               } catch (batchError) {
-                console.error('Erro no processamento do batch:', batchError);
                 stats.errors.push(`Erro no batch ${batchNumber}: ${batchError}`);
               }
             }
@@ -141,7 +128,6 @@ export class CSVServiceOptimized {
             stream.resume();
           }
         } catch (error) {
-          console.error('Erro ao processar linha:', error);
           stats.errors.push(`Erro na linha ${stats.totalRows}: ${error}`);
           isProcessing = false;
           stream.resume();
@@ -152,12 +138,10 @@ export class CSVServiceOptimized {
         try {
           // Processa o último batch se houver dados restantes
           if (currentBatch.length > 0) {
-            console.log(`📦 Processando batch final ${batchNumber} (${currentBatch.length} registros)`);
             const batchStats = await this.processBatchOptimized(currentBatch, filename);
             this.mergeBatchStats(stats, batchStats);
           }
 
-          console.log(`🎉 Processamento concluído: ${stats.totalRows} linhas lidas, ${stats.processedRows} processadas`);
           resolve(stats);
         } catch (error) {
           reject(error);
@@ -165,7 +149,6 @@ export class CSVServiceOptimized {
       });
 
       stream.on('error', (error) => {
-        console.error('❌ Erro no stream de leitura:', error);
         reject(error);
       });
     });
@@ -211,7 +194,6 @@ export class CSVServiceOptimized {
         return batchStats;
 
       } catch (error) {
-        console.error('❌ Erro no processamento do batch:', error);
         batchStats.errors.push(`Erro no batch: ${error}`);
         return batchStats;
       }
@@ -383,8 +365,6 @@ export class CSVServiceOptimized {
       DELETE FROM staging_import 
       WHERE filename = $1
     `, [filename]);
-    
-    console.log(`🗑️ Dados da staging removidos para economizar espaço: ${filename}`);
   }
 
   /**
@@ -406,7 +386,21 @@ export class CSVServiceOptimized {
    * @returns Objeto CSVRowData
    */
   private parseCSVRow(row: any): CSVRowData {
-    return {
+    // Função auxiliar para criar datas em UTC
+    const parseUTCDate = (dateStr: string): Date | undefined => {
+      if (!dateStr) return undefined;
+      
+      // Se a string já tem timezone (Z ou +/-), usa diretamente
+      if (dateStr.includes('Z') || dateStr.includes('+') || dateStr.includes('-')) {
+        return new Date(dateStr);
+      }
+      
+      // Se não tem timezone, assume UTC adicionando 'Z'
+      const utcDateStr = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
+      return new Date(utcDateStr);
+    };
+
+    const parsedData = {
       smartico_user_id: parseInt(row.smartico_user_id) || 0,
       user_ext_id: row.user_ext_id || undefined,
       core_sm_brand_id: row.core_sm_brand_id !== undefined && row.core_sm_brand_id !== null && row.core_sm_brand_id !== '' ? parseInt(row.core_sm_brand_id) : undefined,
@@ -415,9 +409,11 @@ export class CSVServiceOptimized {
       crm_brand_name: row.crm_brand_name || undefined,
       promocao_nome: row.promocao_nome || '',
       regras: row.regras || undefined,
-      data_inicio: row.data_inicio ? new Date(row.data_inicio) : undefined,
-      data_fim: row.data_fim ? new Date(row.data_fim) : undefined
+      data_inicio: parseUTCDate(row.data_inicio),
+      data_fim: parseUTCDate(row.data_fim)
     };
+
+    return parsedData;
   }
 
   /**
@@ -447,10 +443,9 @@ export class CSVServiceOptimized {
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log(`🗑️ Arquivo removido: ${filePath}`);
       }
     } catch (error) {
-      console.error('❌ Erro ao remover arquivo:', error);
+      // Erro silencioso para não poluir logs
     }
   }
 
@@ -472,13 +467,10 @@ export class CSVServiceOptimized {
         if (now - stats.mtime.getTime() > maxAge) {
           fs.unlinkSync(filePath);
           removedCount++;
-          console.log(`🗑️ Arquivo antigo removido: ${file}`);
         }
       }
-
-      console.log(`🧹 Limpeza concluída: ${removedCount} arquivos removidos`);
     } catch (error) {
-      console.error('❌ Erro ao limpar arquivos antigos:', error);
+      // Erro silencioso para não poluir logs
     }
   }
 }

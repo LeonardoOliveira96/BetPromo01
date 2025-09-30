@@ -42,26 +42,16 @@ export class CSVService {
     const filePath = path.join(this.uploadDir, filename);
     
     try {
-      console.log(`🚀 Iniciando processamento do CSV (apenas usuários): ${filename}`);
-      console.log(`📁 Caminho do arquivo: ${filePath}`);
-      
       // Valida o arquivo
-      console.log(`🔍 Validando arquivo...`);
       this.validateFile(file);
-      console.log(`✅ Arquivo validado com sucesso`);
 
       // Lê e valida dados do CSV
-      console.log(`📖 Iniciando leitura do arquivo CSV...`);
       const csvData = await this.readCSVFile(filePath);
-      console.log(`📊 CSV processado: ${csvData.length} linhas válidas`);
       
       // Processa APENAS os usuários em transação
-      console.log(`🔄 Iniciando processamento dos usuários em transação...`);
       const stats = await this.processUsersOnlyInTransaction(csvData, filename);
-      console.log(`✅ Processamento de usuários concluído:`, stats);
 
       // Remove arquivo temporário
-      console.log(`🗑️ Removendo arquivo temporário...`);
       this.cleanupFile(filePath);
 
       return {
@@ -83,15 +73,12 @@ export class CSVService {
       console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'Sem stack trace');
       
       // Remove arquivo em caso de erro
-      console.log(`🗑️ Removendo arquivo após erro...`);
       this.cleanupFile(filePath);
       
       if (error instanceof AppError) {
-        console.log(`🔄 Relançando AppError: ${error.message} (${error.errorCode})`);
         throw error;
       }
       
-      console.log(`🆕 Criando novo AppError para erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       throw new AppError('Erro interno no processamento do CSV', 500, 'CSV_PROCESSING_ERROR');
     }
   }
@@ -104,8 +91,6 @@ export class CSVService {
    */
   async vincularUsuariosAPromocao(filename: string, promotionName: string): Promise<{ newUserPromotions: number }> {
     try {
-      console.log(`🔗 Iniciando vinculação de usuários do arquivo ${filename} à promoção: ${promotionName}`);
-      
       const stats = await transaction(async (client) => {
         // Verifica se existe dados staging para este arquivo
         const stagingCheck = await client.query(`
@@ -140,8 +125,6 @@ export class CSVService {
         return { newPromotions, newUserPromotions };
       });
 
-      console.log(`✅ Vinculação concluída: ${stats.newUserPromotions} usuários vinculados à promoção`);
-      
       return { newUserPromotions: stats.newUserPromotions };
 
     } catch (error) {
@@ -228,13 +211,37 @@ export class CSVService {
        return clean;
      });
     
+    // Função auxiliar para parsing de datas UTC
+    const parseUTCDate = (dateStr: string): Date | undefined => {
+      if (!dateStr || dateStr.trim() === '') return undefined;
+      
+      try {
+        // Se a string já contém informações de timezone, usa diretamente
+        if (dateStr.includes('Z') || dateStr.includes('+') || dateStr.includes('-')) {
+          return new Date(dateStr);
+        }
+        
+        // Se não tem timezone, assume que é horário local do Brasil e força UTC
+        // Adiciona 'Z' para forçar interpretação como UTC
+        const utcDateStr = dateStr.trim() + 'Z';
+        return new Date(utcDateStr);
+      } catch (error) {
+        console.error('Erro ao fazer parse da data:', dateStr, error);
+        return undefined;
+      }
+    };
+
     return {
       smartico_user_id: cleanParts[0] || '',
       user_ext_id: cleanParts[1] || '',
       core_sm_brand_id: cleanParts[2] || '',
       crm_brand_id: cleanParts[3] || '',
       ext_brand_id: cleanParts[4] || '',
-      crm_brand_name: cleanParts[5] || ''
+      crm_brand_name: cleanParts[5] || '',
+      promocao_nome: cleanParts[6] || '',
+      regras: cleanParts[7] || '',
+      data_inicio: parseUTCDate(cleanParts[8] || ''),
+      data_fim: parseUTCDate(cleanParts[9] || '')
     };
   }
 
@@ -250,14 +257,10 @@ export class CSVService {
       let lineNumber = 0;
       let processedLines = 0;
 
-      console.log(`📖 Iniciando leitura do arquivo CSV: ${path.basename(filePath)}`);
-
       try {
         const fileContent = fs.readFileSync(filePath, 'utf-8');
-        console.log(`📄 Arquivo lido com sucesso. Tamanho: ${fileContent.length} caracteres`);
         
         const lines = fileContent.split('\n').filter(line => line.trim());
-        console.log(`📋 Total de linhas encontradas: ${lines.length}`);
         
         if (lines.length === 0) {
           throw new Error('Arquivo CSV está vazio');
@@ -271,32 +274,23 @@ export class CSVService {
           lineNumber++;
           processedLines++;
           
-          // Log de progresso a cada 50.000 linhas
-          if (processedLines % 50000 === 0) {
-            console.log(`📊 Lidas ${processedLines.toLocaleString()} linhas...`);
-          }
+
           
           try {
-            console.log(`🔍 Processando linha ${lineNumber}: ${line.substring(0, 100)}...`);
-            
             // Parse customizado da linha
             const data = this.parseCustomCSVLine(line);
-            console.log(`✅ Parse da linha ${lineNumber} concluído:`, JSON.stringify(data, null, 2));
             
-            // Se não tem promoção, adiciona uma padrão baseada na marca
+            // Se não tem promoção, adiciona uma padrão baseada na marca (SEM datas automáticas)
             if (!data.promocao_nome) {
               const brandName = data.crm_brand_name || data.ext_brand_id || 'Marca';
               data.promocao_nome = `Promoção Padrão ${brandName}`;
               data.regras = data.regras || 'Promoção padrão para usuários da marca';
-              data.data_inicio = data.data_inicio || new Date().toISOString();
-              data.data_fim = data.data_fim || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 ano
-              console.log(`🔧 Dados padrão adicionados para linha ${lineNumber}:`, JSON.stringify(data, null, 2));
+              // REMOVIDO: Criação automática de datas padrão
+              // As datas devem vir do CSV ou serem definidas manualmente
             }
             
             // Valida cada linha usando Zod
-            console.log(`🔍 Validando linha ${lineNumber} com Zod...`);
             const validatedData = validateCSVRow(data);
-            console.log(`✅ Validação Zod concluída para linha ${lineNumber}`);
 
             // Garante que promocao_nome é string (nunca undefined)
             if (!validatedData.promocao_nome) {
@@ -312,8 +306,6 @@ export class CSVService {
           }
         }
       }
-      
-      console.log(`✅ Leitura concluída: ${processedLines.toLocaleString()} linhas processadas`);
       
       if (errors.length > 0) {
         reject(new AppError(`Erros de validação no CSV: ${errors.join(', ')}`, 400, 'CSV_VALIDATION_ERROR'));
@@ -411,28 +403,10 @@ export class CSVService {
     const batchSize = 5000; // Processa 5000 registros por vez para máxima performance
     const totalRows = csvData.length;
     
-    console.log(`🚀 Iniciando inserção em lote de ${totalRows} registros (${batchSize} por lote)`);
-    
-    console.log(`🔍 DEBUG - promotionName recebido:`, {
-      promotionName,
-      type: typeof promotionName,
-      length: promotionName?.length,
-      trimmed: promotionName?.trim(),
-      isEmpty: !promotionName || !promotionName.trim()
-    });
-    
-    if (promotionName && promotionName.trim()) {
-      console.log(`🎯 Usando nome de promoção fornecido: "${promotionName.trim()}"`);
-    } else {
-      console.log(`⚠️ Nenhum nome de promoção válido fornecido, usando valores do CSV ou padrão`);
-    }
-    
     for (let i = 0; i < totalRows; i += batchSize) {
       const batch = csvData.slice(i, i + batchSize);
       const currentBatch = Math.floor(i / batchSize) + 1;
       const totalBatches = Math.ceil(totalRows / batchSize);
-      
-      console.log(`📦 Processando lote ${currentBatch}/${totalBatches} (${batch.length} registros)`);
       
       // Constrói query com múltiplos VALUES
       const values: any[] = [];
@@ -446,17 +420,6 @@ export class CSVService {
         const finalPromotionName = promotionName && promotionName.trim() 
           ? promotionName.trim() 
           : (row.promocao_nome || `Promoção Padrão ${row.crm_brand_name}`);
-        
-        // Log detalhado para o primeiro registro de cada lote
-        if (index === 0) {
-          console.log(`🔍 LOTE ${currentBatch} - Processamento de promoção:`, {
-            promotionNameFromUser: promotionName,
-            promotionNameFromCSV: row.promocao_nome,
-            finalPromotionName: finalPromotionName,
-            smarticoUserId: row.smartico_user_id,
-            brandName: row.crm_brand_name
-          });
-        }
         
         values.push(
           row.smartico_user_id,
@@ -483,14 +446,7 @@ export class CSVService {
       
       await client.query(query, values);
       
-      // Log de progresso a cada 10 lotes
-      if (currentBatch % 10 === 0 || currentBatch === totalBatches) {
-        const progress = ((i + batch.length) / totalRows * 100).toFixed(1);
-        console.log(`✅ Progresso: ${progress}% (${i + batch.length}/${totalRows} registros)`);
-      }
     }
-    
-    console.log(`🎉 Inserção concluída: ${totalRows} registros inseridos com sucesso!`);
   }
 
   /**
@@ -523,18 +479,6 @@ export class CSVService {
    * @returns Número de novas promoções
    */
   private async createPromocoes(client: any, filename: string): Promise<number> {
-    console.log(`🎯 Iniciando criação de promoções para arquivo: ${filename}`);
-    
-    // Primeiro, vamos ver quais promoções estão na staging
-    const stagingPromotions = await client.query(`
-      SELECT DISTINCT promocao_nome, COUNT(*) as count
-      FROM staging_import 
-      WHERE filename = $1 
-        AND promocao_nome IS NOT NULL
-      GROUP BY promocao_nome
-    `, [filename]);
-    
-    console.log(`📋 Promoções encontradas na staging:`, stagingPromotions.rows);
     
     const result = await client.query(`
       INSERT INTO promocoes (nome, regras, data_inicio, data_fim, status)
@@ -556,9 +500,6 @@ export class CSVService {
       RETURNING nome, promocao_id
     `, [filename]);
 
-    console.log(`✅ Promoções criadas/atualizadas:`, result.rows);
-    console.log(`📊 Total de promoções processadas: ${result.rowCount || 0}`);
-
     return result.rowCount || 0;
   }
 
@@ -569,32 +510,6 @@ export class CSVService {
    * @returns Número de novos vínculos
    */
   private async linkUsuarioPromocoes(client: any, filename: string): Promise<number> {
-    console.log(`🔗 Iniciando vinculação de usuários para arquivo: ${filename}`);
-    
-    // Primeiro, vamos ver quais usuários estão sendo processados
-    const usersToProcess = await client.query(`
-      SELECT DISTINCT smartico_user_id, promocao_nome
-      FROM staging_import 
-      WHERE filename = $1
-      ORDER BY smartico_user_id
-    `, [filename]);
-    
-    console.log(`👥 Usuários a serem processados:`, usersToProcess.rows);
-    
-    // Verificar vinculações atuais desses usuários
-    const currentLinks = await client.query(`
-      SELECT up.smartico_user_id, p.nome as promocao_nome, up.status
-      FROM usuario_promocao up
-      JOIN promocoes p ON up.promocao_id = p.promocao_id
-      WHERE up.smartico_user_id IN (
-        SELECT DISTINCT smartico_user_id 
-        FROM staging_import 
-        WHERE filename = $1
-      )
-      AND up.status = 'active'
-    `, [filename]);
-    
-    console.log(`🔗 Vinculações atuais dos usuários:`, currentLinks.rows);
     
     // Primeiro, desativa vinculações antigas do usuário para outras promoções
     // se ele está sendo vinculado a uma nova promoção
@@ -610,7 +525,7 @@ export class CSVService {
       RETURNING smartico_user_id, promocao_id
     `, [filename]);
 
-    console.log(`🔄 Desativadas ${deactivateResult.rowCount || 0} vinculações antigas:`, deactivateResult.rows);
+
 
     // Agora cria as novas vinculações
     const result = await client.query(`
@@ -636,23 +551,6 @@ export class CSVService {
         updated_at = NOW()
       RETURNING smartico_user_id, promocao_id
     `, [filename]);
-
-    console.log(`✅ Criadas/atualizadas ${result.rowCount || 0} vinculações:`, result.rows);
-    
-    // Verificar o resultado final
-    const finalLinks = await client.query(`
-      SELECT up.smartico_user_id, p.nome as promocao_nome, up.status
-      FROM usuario_promocao up
-      JOIN promocoes p ON up.promocao_id = p.promocao_id
-      WHERE up.smartico_user_id IN (
-        SELECT DISTINCT smartico_user_id 
-        FROM staging_import 
-        WHERE filename = $1
-      )
-      AND up.status = 'active'
-    `, [filename]);
-    
-    console.log(`🎯 Vinculações finais ativas:`, finalLinks.rows);
 
     return result.rowCount || 0;
   }

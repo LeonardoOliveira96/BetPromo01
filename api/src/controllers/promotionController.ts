@@ -54,7 +54,46 @@ export class PromotionController {
    */
   async createPromotion(req: Request, res: Response): Promise<void> {
     try {
+      console.log('🚀 CONTROLLER - Dados recebidos do frontend:', JSON.stringify(req.body, null, 2));
+      
+      const { nome, descricao, tipo, data_inicio, data_fim, status } = req.body;
+
+      console.log('🔍 CONTROLLER - ANÁLISE DETALHADA DAS DATAS RECEBIDAS:');
+      console.log('  - data_inicio (raw):', data_inicio);
+      console.log('  - data_inicio (type):', typeof data_inicio);
+      console.log('  - data_fim (raw):', data_fim);
+      console.log('  - data_fim (type):', typeof data_fim);
+
+      // Converter strings de data para objetos Date
+      const startDate = new Date(data_inicio);
+      const endDate = new Date(data_fim);
+
+      console.log('📅 CONTROLLER - CONVERSÃO PARA OBJETOS DATE:');
+      console.log('  - startDate:', startDate);
+      console.log('  - startDate.toString():', startDate.toString());
+      console.log('  - startDate.toISOString():', startDate.toISOString());
+      console.log('  - startDate.getFullYear():', startDate.getFullYear());
+      console.log('  - startDate.getMonth():', startDate.getMonth() + 1);
+      console.log('  - startDate.getDate():', startDate.getDate());
+      
+      console.log('  - endDate:', endDate);
+      console.log('  - endDate.toString():', endDate.toString());
+      console.log('  - endDate.toISOString():', endDate.toISOString());
+      console.log('  - endDate.getFullYear():', endDate.getFullYear());
+      console.log('  - endDate.getMonth():', endDate.getMonth() + 1);
+      console.log('  - endDate.getDate():', endDate.getDate());
+
       const validatedData = createPromotionSchema.parse(req.body);
+      
+      console.log('✅ BACKEND - Dados validados pelo schema:');
+      console.log('  - Nome:', validatedData.nome);
+      console.log('  - Regras:', validatedData.regras);
+      console.log('  - Data início (string):', validatedData.data_inicio);
+      console.log('  - Data fim (string):', validatedData.data_fim);
+      console.log('  - Status:', validatedData.status);
+      console.log('  - Marca:', validatedData.marca);
+      console.log('  - Tipo:', validatedData.tipo);
+      console.log('  - Notificações:', validatedData.notifications);
       
       // Converter strings de data para Date objects e processar notificações
       const promotionData = {
@@ -72,6 +111,31 @@ export class PromotionController {
         notification_whatsapp: validatedData.notifications?.whatsapp || false,
         notification_telegram: validatedData.notifications?.telegram || false
       };
+
+      console.log('📦 CONTROLLER - OBJETO PROMOTION_DATA CRIADO:');
+      console.log('  - nome:', promotionData.nome);
+      console.log('  - data_inicio:', promotionData.data_inicio);
+      console.log('  - data_inicio.toISOString():', promotionData.data_inicio?.toISOString());
+      console.log('  - data_inicio.getFullYear():', promotionData.data_inicio?.getFullYear());
+      console.log('  - data_fim:', promotionData.data_fim);
+      console.log('  - data_fim.toISOString():', promotionData.data_fim?.toISOString());
+      console.log('  - data_fim.getFullYear():', promotionData.data_fim?.getFullYear());
+      console.log('  - Objeto completo:', JSON.stringify(promotionData, null, 2));
+
+      console.log('🔄 BACKEND - Dados processados para o banco:');
+      console.log('  - Nome:', promotionData.nome);
+      console.log('  - Regras:', promotionData.regras);
+      console.log('  - Data início (Date):', promotionData.data_inicio);
+      console.log('  - Data início toString:', promotionData.data_inicio?.toString());
+      console.log('  - Data início toISOString:', promotionData.data_inicio?.toISOString());
+      console.log('  - Data início toLocaleDateString:', promotionData.data_inicio?.toLocaleDateString('pt-BR'));
+      console.log('  - Data fim (Date):', promotionData.data_fim);
+      console.log('  - Data fim toString:', promotionData.data_fim?.toString());
+      console.log('  - Data fim toISOString:', promotionData.data_fim?.toISOString());
+      console.log('  - Data fim toLocaleDateString:', promotionData.data_fim?.toLocaleDateString('pt-BR'));
+      console.log('  - Status:', promotionData.status);
+      console.log('  - Marca:', promotionData.marca);
+      console.log('  - Tipo:', promotionData.tipo);
 
       // Validar datas
       if (promotionData.data_inicio && promotionData.data_fim) {
@@ -148,7 +212,15 @@ export class PromotionController {
     try {
       const validatedQuery = listPromotionsSchema.parse(req.query);
       
+      console.log('📋 Listando promoções com filtros:', validatedQuery);
+      
       const result = await this.promotionService.getPromotions(validatedQuery);
+
+      console.log(`📊 Encontradas ${result.promotions.length} promoções de ${result.total} total`);
+      
+      if (validatedQuery.search) {
+        console.log('🔍 Promoções encontradas para busca:', result.promotions.map((p: any) => p.nome));
+      }
 
       res.json({
         success: true,

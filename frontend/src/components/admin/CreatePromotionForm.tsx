@@ -295,13 +295,44 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
     }
 
     // Criar objetos Date completos com horários
+    console.log('🗓️ Datas selecionadas pelo usuário:');
+    console.log('  - Data início selecionada:', dateRange.from);
+    console.log('  - Data início toString:', dateRange.from?.toString());
+    console.log('  - Data início toLocaleDateString:', dateRange.from?.toLocaleDateString('pt-BR'));
+    console.log('  - Data fim selecionada:', dateRange.to);
+    console.log('  - Data fim toString:', dateRange.to?.toString());
+    console.log('  - Data fim toLocaleDateString:', dateRange.to?.toLocaleDateString('pt-BR'));
+    console.log('  - Horário início:', startTime);
+    console.log('  - Horário fim:', endTime);
+
     const startDateTime = new Date(dateRange.from);
+    console.log('🔍 Processando data início:');
+    console.log('  - new Date(dateRange.from):', startDateTime);
+    console.log('  - Ano:', startDateTime.getFullYear());
+    console.log('  - Mês:', startDateTime.getMonth() + 1);
+    console.log('  - Dia:', startDateTime.getDate());
+    
     const [startHour, startMinute] = startTime.split(':').map(Number);
-    startDateTime.setHours(startHour, startMinute, 0, 0);
+    // Usar setUTCHours para evitar problemas de timezone
+    startDateTime.setUTCHours(startHour, startMinute, 0, 0);
 
     const endDateTime = new Date(dateRange.to);
+    console.log('🔍 Processando data fim:');
+    console.log('  - new Date(dateRange.to):', endDateTime);
+    console.log('  - Ano:', endDateTime.getFullYear());
+    console.log('  - Mês:', endDateTime.getMonth() + 1);
+    console.log('  - Dia:', endDateTime.getDate());
+    
     const [endHour, endMinute] = endTime.split(':').map(Number);
-    endDateTime.setHours(endHour, endMinute, 59, 999);
+    // Usar setUTCHours para evitar problemas de timezone
+    endDateTime.setUTCHours(endHour, endMinute, 59, 999);
+
+    console.log('📅 Datas processadas finais (UTC):');
+    console.log('  - Data/hora início:', startDateTime);
+    console.log('  - Data/hora início ISO:', startDateTime.toISOString());
+    console.log('  - Data/hora fim:', endDateTime);
+    console.log('  - Data/hora fim ISO:', endDateTime.toISOString());
+    console.log('  - ⚠️ CORREÇÃO: Usando setUTCHours para evitar problemas de timezone');
 
     if (endDateTime <= startDateTime) {
       toast({
@@ -323,6 +354,20 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
       addLog('info', `Promoção agendada para ativação em ${format(startDateTime, "PPP 'às' HH:mm", { locale: ptBR })}`);
     }
 
+    console.log('📋 FRONTEND - Dados da promoção sendo enviados:');
+    console.log('  - Nome:', formData.name);
+    console.log('  - Descrição:', formData.description);
+    console.log('  - Marca:', formData.brand);
+    console.log('  - Tipo:', formData.type);
+    console.log('  - Regras:', formData.rules);
+    console.log('  - Data início ISO:', startDateTime.toISOString());
+    console.log('  - Data fim ISO:', endDateTime.toISOString());
+    console.log('  - Status calculado:', isScheduled && formData.scheduleActivation ? 'scheduled' : (formData.status ? 'active' : 'inactive'));
+    console.log('  - IDs de usuários CSV:', csvUserIds);
+    console.log('  - Agendamento ativo:', formData.scheduleActivation);
+    console.log('  - Arquivo CSV:', uploadResult?.data?.filename);
+    console.log('  - Notificações:', formData.notifications);
+
     const promotionData = {
       nome: formData.name,
       descricao: formData.description,
@@ -337,6 +382,11 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
       csvFilename: uploadResult?.data?.filename || undefined,
       notifications: formData.notifications
     };
+
+    console.log('🚀 FRONTEND - Enviando requisição para API:');
+    console.log('  - URL: /api/promocoes');
+    console.log('  - Método: POST');
+    console.log('  - Dados completos:', JSON.stringify(promotionData, null, 2));
 
     try {
       // Criar promoção via API

@@ -174,7 +174,6 @@ export class SearchService {
       };
 
     } catch (error) {
-      console.error('Erro na busca de usuários:', error);
       throw new AppError('Erro ao buscar usuários', 500, 'SEARCH_ERROR');
     }
   }
@@ -235,27 +234,13 @@ export class SearchService {
           u.updated_at
       `;
 
-      console.log('🔍 SearchService - Query executada:', userQuery);
-      console.log('🔍 SearchService - Parâmetros:', queryParams);
-      
       const result = await query(userQuery, queryParams);
-      
-      console.log('🔍 SearchService - Resultado da query:', {
-        rowCount: result.rows.length,
-        firstRow: result.rows[0]
-      });
 
       if (result.rows.length === 0) {
         throw new AppError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
       }
 
       const user = result.rows[0];
-      
-      console.log('🔍 SearchService - Promoções encontradas:', {
-        userId: user.smartico_user_id,
-        promotions: user.current_promotions,
-        promotionsCount: user.current_promotions ? user.current_promotions.length : 0
-      });
       
       const userData = {
         _id: `user_${user.smartico_user_id}`,
@@ -270,12 +255,9 @@ export class SearchService {
         updated_at: user.updated_at
       };
       
-      console.log('🔍 SearchService - Dados finais retornados:', userData);
-      
       return userData;
 
     } catch (error) {
-      console.error('Erro ao buscar usuário por ID:', error);
       if (error instanceof AppError) {
         throw error;
       }
@@ -338,7 +320,6 @@ export class SearchService {
       }));
 
     } catch (error) {
-      console.error('Erro na busca rápida:', error);
       throw new AppError('Erro na busca rápida', 500, 'QUICK_SEARCH_ERROR');
     }
   }

@@ -313,8 +313,8 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
     console.log('  - Dia:', startDateTime.getDate());
     
     const [startHour, startMinute] = startTime.split(':').map(Number);
-    // Usar setUTCHours para evitar problemas de timezone
-    startDateTime.setUTCHours(startHour, startMinute, 0, 0);
+    // Usar setHours para horário local do Brasil
+    startDateTime.setHours(startHour, startMinute, 0, 0);
 
     const endDateTime = new Date(dateRange.to);
     console.log('🔍 Processando data fim:');
@@ -324,15 +324,15 @@ export const CreatePromotionForm = ({ onSuccess }: CreatePromotionFormProps) => 
     console.log('  - Dia:', endDateTime.getDate());
     
     const [endHour, endMinute] = endTime.split(':').map(Number);
-    // Usar setUTCHours para evitar problemas de timezone
-    endDateTime.setUTCHours(endHour, endMinute, 59, 999);
+    // Usar setHours para horário local do Brasil
+    endDateTime.setHours(endHour, endMinute, 59, 999);
 
-    console.log('📅 Datas processadas finais (UTC):');
+    console.log('📅 Datas processadas finais (Horário Local):');
     console.log('  - Data/hora início:', startDateTime);
     console.log('  - Data/hora início ISO:', startDateTime.toISOString());
     console.log('  - Data/hora fim:', endDateTime);
     console.log('  - Data/hora fim ISO:', endDateTime.toISOString());
-    console.log('  - ⚠️ CORREÇÃO: Usando setUTCHours para evitar problemas de timezone');
+    console.log('  - ✅ CORREÇÃO: Usando setHours para horário local do Brasil');
 
     if (endDateTime <= startDateTime) {
       toast({

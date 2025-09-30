@@ -178,7 +178,8 @@ export class PromotionService {
     const client = await this.db.connect();
     
     try {
-      const query = `
+      // Buscar dados da promoção
+      const promotionQuery = `
         SELECT p.*,
                COUNT(up.smartico_user_id) as total_users
         FROM promocoes p
@@ -187,8 +188,29 @@ export class PromotionService {
         GROUP BY p.promocao_id
       `;
       
-      const result = await client.query(query, [id]);
-      return result.rows[0] || null;
+      const promotionResult = await client.query(promotionQuery, [id]);
+      const promotion = promotionResult.rows[0];
+      
+      if (!promotion) {
+        return null;
+      }
+      
+      // Buscar smartico_user_ids associados à promoção
+      const usersQuery = `
+        SELECT DISTINCT up.smartico_user_id
+        FROM usuario_promocao up
+        WHERE up.promocao_id = $1
+        ORDER BY up.smartico_user_id
+      `;
+      
+      const usersResult = await client.query(usersQuery, [id]);
+      const smarticoUserIds = usersResult.rows.map(row => row.smartico_user_id);
+      
+      // Adicionar os smartico_user_ids ao objeto da promoção
+      return {
+        ...promotion,
+        smartico_user_ids: smarticoUserIds
+      };
     } finally {
       client.release();
     }

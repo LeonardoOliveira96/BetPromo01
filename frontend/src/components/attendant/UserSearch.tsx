@@ -57,6 +57,7 @@ interface PromotionDetails {
   notification_push?: boolean;
   notification_whatsapp?: boolean;
   notification_telegram?: boolean;
+  smartico_user_ids?: number[];
 }
 
 export const UserSearch = () => {
@@ -186,6 +187,7 @@ export const UserSearch = () => {
     setIsPromotionModalOpen(true);
 
     console.log('🔍 Buscando detalhes da promoção:', promotionName);
+    console.log('👤 Usuário selecionado:', selectedUser?.smartico_user_id);
 
     // Verificar se há token de autenticação
     const token = localStorage.getItem('auth_token_data');
@@ -200,7 +202,7 @@ export const UserSearch = () => {
     }
 
     try {
-      // Primeira tentativa: busca exata por nome
+      // Primeira tentativa: busca exata por nome para obter o ID da promoção
       const response = await apiService.get<{
         success: boolean;
         data: PromotionDetails[];
@@ -238,7 +240,31 @@ export const UserSearch = () => {
 
       if (foundPromotion) {
         console.log('✅ Promoção encontrada:', foundPromotion);
-        setSelectedPromotion(foundPromotion);
+        
+        // Agora buscar os detalhes completos da promoção por ID para garantir que temos os smartico_user_ids
+        try {
+          const detailedResponse = await apiService.get<{
+            success: boolean;
+            data: PromotionDetails;
+          }>(`/promocoes/${foundPromotion.promocao_id}`);
+
+          if (detailedResponse.success) {
+            console.log('✅ Detalhes completos da promoção:', detailedResponse.data);
+            
+            // Mostrar apenas o ID do usuário pesquisado, não todos os IDs da promoção
+            if (selectedUser) {
+              detailedResponse.data.smartico_user_ids = [selectedUser.smartico_user_id];
+            }
+            
+            setSelectedPromotion(detailedResponse.data);
+          } else {
+            console.log('⚠️ Erro ao buscar detalhes completos, usando dados da busca inicial');
+            setSelectedPromotion(foundPromotion);
+          }
+        } catch (detailError) {
+          console.log('⚠️ Erro ao buscar detalhes por ID, usando dados da busca inicial:', detailError);
+          setSelectedPromotion(foundPromotion);
+        }
       } else {
         console.log('⚠️ Promoção não encontrada na API, tentando buscar todas as promoções...');
 
@@ -267,7 +293,30 @@ export const UserSearch = () => {
 
           if (matchedPromotion) {
             console.log('✅ Promoção encontrada na segunda tentativa:', matchedPromotion);
-            setSelectedPromotion(matchedPromotion);
+            
+            // Buscar detalhes completos por ID
+            try {
+              const detailedResponse = await apiService.get<{
+                success: boolean;
+                data: PromotionDetails;
+              }>(`/promocoes/${matchedPromotion.promocao_id}`);
+
+              if (detailedResponse.success) {
+                 console.log('✅ Detalhes completos da promoção (segunda tentativa):', detailedResponse.data);
+                 
+                 // Mostrar apenas o ID do usuário pesquisado, não todos os IDs da promoção
+                 if (selectedUser) {
+                   detailedResponse.data.smartico_user_ids = [selectedUser.smartico_user_id];
+                 }
+                 
+                 setSelectedPromotion(detailedResponse.data);
+              } else {
+                setSelectedPromotion(matchedPromotion);
+              }
+            } catch (detailError) {
+              console.log('⚠️ Erro ao buscar detalhes por ID (segunda tentativa):', detailError);
+              setSelectedPromotion(matchedPromotion);
+            }
           } else {
             console.log('❌ Promoção não encontrada, usando dados mock');
             // Se não encontrar via API, usar dados mock
@@ -287,7 +336,8 @@ export const UserSearch = () => {
               notification_popup: false,
               notification_push: true,
               notification_whatsapp: false,
-              notification_telegram: true
+              notification_telegram: true,
+              smartico_user_ids: selectedUser ? [selectedUser.smartico_user_id] : []
             };
             setSelectedPromotion(mockPromotionDetails);
           }
@@ -310,7 +360,8 @@ export const UserSearch = () => {
             notification_popup: true,
             notification_push: false,
             notification_whatsapp: true,
-            notification_telegram: false
+            notification_telegram: false,
+            smartico_user_ids: selectedUser ? [selectedUser.smartico_user_id] : []
           };
           setSelectedPromotion(mockPromotionDetails);
         }
@@ -538,6 +589,14 @@ export const UserSearch = () => {
                       #{selectedPromotion.promocao_id}
                     </p>
                   </div>
+                  {selectedPromotion.smartico_user_ids && selectedPromotion.smartico_user_ids.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">ID Smartico do Usuário</Label>
+                      <p className="text-base font-medium text-foreground bg-muted/50 px-3 py-2 rounded-md mt-1">
+                        #{selectedPromotion.smartico_user_ids[0]}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Status</Label>
                     <div className="mt-1">
@@ -612,36 +671,58 @@ export const UserSearch = () => {
                     Notificações Enviadas
                   </Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_sms ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                      <Phone className="h-4 w-4" />
-                      <span className="text-sm font-medium">SMS</span>
-                      {selectedPromotion.notification_sms && <span className="text-xs">✓</span>}
-                    </div>
-                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_email ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                      <Mail className="h-4 w-4" />
-                      <span className="text-sm font-medium">Email</span>
-                      {selectedPromotion.notification_email && <span className="text-xs">✓</span>}
-                    </div>
-                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_popup ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                      <ExternalLink className="h-4 w-4" />
-                      <span className="text-sm font-medium">Pop-up</span>
-                      {selectedPromotion.notification_popup && <span className="text-xs">✓</span>}
-                    </div>
-                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_push ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                      <Smartphone className="h-4 w-4" />
-                      <span className="text-sm font-medium">Push</span>
-                      {selectedPromotion.notification_push && <span className="text-xs">✓</span>}
-                    </div>
-                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_whatsapp ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="text-sm font-medium">WhatsApp</span>
-                      {selectedPromotion.notification_whatsapp && <span className="text-xs">✓</span>}
-                    </div>
-                    <div className={`flex items-center gap-2 p-2 rounded-md border ${selectedPromotion.notification_telegram ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="text-sm font-medium">Telegram</span>
-                      {selectedPromotion.notification_telegram && <span className="text-xs">✓</span>}
-                    </div>
+                    {selectedPromotion.notification_sms && (
+                      <div className="flex items-center gap-2 p-2 rounded-md border bg-green-50 border-green-200 text-green-700">
+                        <Phone className="h-4 w-4" />
+                        <span className="text-sm font-medium">SMS</span>
+                        <span className="text-xs">✓</span>
+                      </div>
+                    )}
+                    {selectedPromotion.notification_email && (
+                      <div className="flex items-center gap-2 p-2 rounded-md border bg-green-50 border-green-200 text-green-700">
+                        <Mail className="h-4 w-4" />
+                        <span className="text-sm font-medium">Email</span>
+                        <span className="text-xs">✓</span>
+                      </div>
+                    )}
+                    {selectedPromotion.notification_popup && (
+                      <div className="flex items-center gap-2 p-2 rounded-md border bg-green-50 border-green-200 text-green-700">
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="text-sm font-medium">Pop-up</span>
+                        <span className="text-xs">✓</span>
+                      </div>
+                    )}
+                    {selectedPromotion.notification_push && (
+                      <div className="flex items-center gap-2 p-2 rounded-md border bg-green-50 border-green-200 text-green-700">
+                        <Smartphone className="h-4 w-4" />
+                        <span className="text-sm font-medium">Push</span>
+                        <span className="text-xs">✓</span>
+                      </div>
+                    )}
+                    {selectedPromotion.notification_whatsapp && (
+                      <div className="flex items-center gap-2 p-2 rounded-md border bg-green-50 border-green-200 text-green-700">
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="text-sm font-medium">WhatsApp</span>
+                        <span className="text-xs">✓</span>
+                      </div>
+                    )}
+                    {selectedPromotion.notification_telegram && (
+                      <div className="flex items-center gap-2 p-2 rounded-md border bg-green-50 border-green-200 text-green-700">
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="text-sm font-medium">Telegram</span>
+                        <span className="text-xs">✓</span>
+                      </div>
+                    )}
+                    {!selectedPromotion.notification_sms && 
+                     !selectedPromotion.notification_email && 
+                     !selectedPromotion.notification_popup && 
+                     !selectedPromotion.notification_push && 
+                     !selectedPromotion.notification_whatsapp && 
+                     !selectedPromotion.notification_telegram && (
+                      <div className="col-span-full text-center text-gray-500 text-sm py-4">
+                        Nenhuma notificação ativa para esta promoção
+                      </div>
+                    )}
                   </div>
                 </div>
 

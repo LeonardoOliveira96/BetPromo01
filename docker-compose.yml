@@ -1,4 +1,55 @@
 services:
+  # API Backend
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: betpromo-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-betpromo}
+      DB_USER: ${POSTGRES_USER:-betpromo_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-betpromo_pass}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
+    volumes:
+      - api_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - betpromo-network
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: betpromo-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - api
+    networks:
+      - betpromo-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -28,7 +79,7 @@ services:
     container_name: betpromo-pgadmin
     restart: unless-stopped
     ports:
-      - "${PGADMIN_PORT:-8080}:80"
+      - "${PGADMIN_PORT:-5050}:80"
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@betpromo.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
@@ -42,6 +93,7 @@ services:
 
 volumes:
   postgres_data:
+  api_uploads:
     driver: local
   pgadmin_data:
     driver: local

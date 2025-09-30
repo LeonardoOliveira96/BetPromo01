@@ -10,9 +10,11 @@ CREATE TABLE IF NOT EXISTS admin_users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'user',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    is_active BOOLEAN DEFAULT true
+    is_active BOOLEAN DEFAULT true,
+    CONSTRAINT chk_admin_users_role CHECK (role IN ('admin', 'user'))
 );
 
 -- Tabela usuarios_final (dados dos usuários do sistema)
@@ -104,11 +106,26 @@ CREATE INDEX IF NOT EXISTS idx_historico_added_date ON usuario_promocao_historic
 CREATE INDEX IF NOT EXISTS idx_staging_filename ON staging_import(filename);
 CREATE INDEX IF NOT EXISTS idx_staging_processed ON staging_import(processed);
 
--- Inserir usuário administrador padrão (senha: admin123)
--- Hash bcrypt para 'admin123': $2b$10$rOzJqQjQjQjQjQjQjQjQjOzJqQjQjQjQjQjQjQjQjQjQjQjQjQjQj
-INSERT INTO admin_users (email, password_hash, name) 
-VALUES ('admin@betpromo.com', '$2b$10$rOzJqQjQjQjQjQjQjQjQjOzJqQjQjQjQjQjQjQjQjQjQjQjQjQjQj', 'Administrador')
-ON CONFLICT (email) DO NOTHING;
+-- Inserir usuários padrão (senha: senha123)
+-- Hashes bcrypt gerados automaticamente pelo script insertTestUsers.ts
+
+-- Usuário comum: teste@teste.com
+INSERT INTO admin_users (email, password_hash, name, role) 
+VALUES ('teste@teste.com', '$2b$10$H0tW.x2Gejgk/maJ7aA20OiQRHvsCliU/tOTZ6E4FWxoQuTb57GXu', 'Usuário Teste', 'user')
+ON CONFLICT (email) DO UPDATE SET 
+    password_hash = EXCLUDED.password_hash,
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    updated_at = NOW();
+
+-- Usuário administrador: admin@teste.com
+INSERT INTO admin_users (email, password_hash, name, role) 
+VALUES ('admin@teste.com', '$2b$10$HzPeBZgdNSElj2d.SvMhPOojAaCJ.Wn1louYS1cCQ60l5ejEgqWPC', 'Admin Teste', 'admin')
+ON CONFLICT (email) DO UPDATE SET 
+    password_hash = EXCLUDED.password_hash,
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    updated_at = NOW();
 
 -- Comentários nas tabelas
 COMMENT ON TABLE usuarios_final IS 'Tabela principal de usuários do sistema';

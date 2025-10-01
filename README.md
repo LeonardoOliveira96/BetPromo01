@@ -171,6 +171,14 @@ O banco de dados é inicializado automaticamente com o script `api/database/init
 
 ⚠️ **IMPORTANTE**: Altere essas credenciais em produção!
 
+#### Inicialização Manual do Banco (se necessário)
+
+Caso o banco de dados não seja inicializado automaticamente, execute o comando:
+
+```powershell
+Get-Content api/database/init.sql | docker exec -i betpromo-postgres psql -U betpromo_user -d betpromo
+```
+
 ## 🔧 Desenvolvimento
 
 ### Iniciando o ambiente de desenvolvimento
@@ -532,32 +540,9 @@ docker exec -i betpromo-postgres psql -U betpromo_user betpromo < backup.sql
 gunzip -c backup.sql.gz | docker exec -i betpromo-postgres psql -U betpromo_user betpromo
 ```
 
-## 🤝 Contribuição
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-### Padrões de Código
-
-- **TypeScript**: Tipagem estrita
-- **ESLint**: Linting automático
-- **Prettier**: Formatação de código
-- **Conventional Commits**: Padrão de commits
-- **Testes**: Cobertura mínima de 80%
-
 ## 📄 Licença
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
-## 📞 Suporte
 
-- **Email**: suporte@betpromo.com
-- **Issues**: [GitHub Issues](https://github.com/seu-usuario/BetPromo01/issues)
-- **Documentação**: [Wiki](https://github.com/seu-usuario/BetPromo01/wiki)
 
----
-
-**Desenvolvido com ❤️ pela equipe BetPromo**

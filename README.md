@@ -165,9 +165,9 @@ O banco de dados é inicializado automaticamente com o script `api/database/init
 - Usuário administrador padrão
 - Dados de exemplo (opcional)
 
-**Credenciais padrão do admin:**
-- Email: `admin@betpromo.com`
-- Senha: `admin123`
+**Credenciais padrão:**
+- Usuário: `teste@teste.com` / `senha123`
+- Admin: `admin@teste.com` / `senha123`
 
 ⚠️ **IMPORTANTE**: Altere essas credenciais em produção!
 

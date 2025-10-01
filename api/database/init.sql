@@ -37,9 +37,19 @@ CREATE TABLE IF NOT EXISTS promocoes (
     data_inicio TIMESTAMP,
     data_fim TIMESTAMP,
     status TEXT DEFAULT 'active',
+    marca TEXT,
+    tipo TEXT,
+    notification_sms BOOLEAN DEFAULT false,
+    notification_email BOOLEAN DEFAULT false,
+    notification_popup BOOLEAN DEFAULT false,
+    notification_push BOOLEAN DEFAULT false,
+    notification_whatsapp BOOLEAN DEFAULT false,
+    notification_telegram BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    CONSTRAINT chk_status CHECK (status IN ('active', 'inactive', 'expired'))
+    CONSTRAINT chk_status CHECK (status IN ('active', 'inactive', 'expired')),
+    CONSTRAINT chk_tipo CHECK (tipo IN ('rodadas_gratis', 'bonus_deposito', 'cashback', 'freebet', 'apostas_gratis', 'outros') OR tipo IS NULL),
+    CONSTRAINT unique_promocao_nome UNIQUE (nome)
 );
 
 -- Tabela usuario_promocao (vínculo atual entre usuários e promoções)
@@ -91,12 +101,16 @@ CREATE TABLE IF NOT EXISTS staging_import (
     operation_type TEXT DEFAULT 'insert'
 );
 
+-- Constraints de validação já definidas na criação da tabela
+
 -- Índices para melhor performance
 CREATE INDEX IF NOT EXISTS idx_usuarios_final_user_ext_id ON usuarios_final(user_ext_id);
 CREATE INDEX IF NOT EXISTS idx_usuarios_final_crm_brand_id ON usuarios_final(crm_brand_id);
 CREATE INDEX IF NOT EXISTS idx_promocoes_status ON promocoes(status);
 CREATE INDEX IF NOT EXISTS idx_promocoes_data_inicio ON promocoes(data_inicio);
 CREATE INDEX IF NOT EXISTS idx_promocoes_data_fim ON promocoes(data_fim);
+CREATE INDEX IF NOT EXISTS idx_promocoes_marca ON promocoes(marca);
+CREATE INDEX IF NOT EXISTS idx_promocoes_tipo ON promocoes(tipo);
 CREATE INDEX IF NOT EXISTS idx_usuario_promocao_status ON usuario_promocao(status);
 CREATE INDEX IF NOT EXISTS idx_usuario_promocao_data_inicio ON usuario_promocao(data_inicio);
 CREATE INDEX IF NOT EXISTS idx_usuario_promocao_data_fim ON usuario_promocao(data_fim);
@@ -127,6 +141,21 @@ ON CONFLICT (email) DO UPDATE SET
     role = EXCLUDED.role,
     updated_at = NOW();
 
+-- Promoções serão criadas via API conforme necessário
+
+-- Inserir usuário de exemplo para testes
+INSERT INTO usuarios_final (smartico_user_id, user_ext_id, core_sm_brand_id, crm_brand_id, ext_brand_id, crm_brand_name) 
+VALUES (65021189, '180440', 627, 627, 'a7kbetbr', 'bet7k')
+ON CONFLICT (smartico_user_id) DO UPDATE SET 
+    user_ext_id = EXCLUDED.user_ext_id,
+    core_sm_brand_id = EXCLUDED.core_sm_brand_id,
+    crm_brand_id = EXCLUDED.crm_brand_id,
+    ext_brand_id = EXCLUDED.ext_brand_id,
+    crm_brand_name = EXCLUDED.crm_brand_name,
+    updated_at = NOW();
+
+-- Vínculos entre usuários e promoções serão criados via API conforme necessário
+
 -- Comentários nas tabelas
 COMMENT ON TABLE usuarios_final IS 'Tabela principal de usuários do sistema';
 COMMENT ON TABLE promocoes IS 'Definições das promoções disponíveis';
@@ -134,3 +163,13 @@ COMMENT ON TABLE usuario_promocao IS 'Vínculos atuais entre usuários e promoç
 COMMENT ON TABLE usuario_promocao_historico IS 'Histórico completo de todas as operações';
 COMMENT ON TABLE staging_import IS 'Tabela temporária para importação de arquivos CSV';
 COMMENT ON TABLE admin_users IS 'Usuários administrativos para acesso à API';
+
+-- Comentários nos campos da tabela promocoes
+COMMENT ON COLUMN promocoes.marca IS 'Marca da promoção (ex: 7k cassino, verabet)';
+COMMENT ON COLUMN promocoes.tipo IS 'Tipo da promoção (ex: Apostas gratis, Rodadas Gratis, etc)';
+COMMENT ON COLUMN promocoes.notification_sms IS 'Indica se a promoção foi enviada via SMS';
+COMMENT ON COLUMN promocoes.notification_email IS 'Indica se a promoção foi enviada via EMAIL';
+COMMENT ON COLUMN promocoes.notification_popup IS 'Indica se a promoção foi enviada via POP UP';
+COMMENT ON COLUMN promocoes.notification_push IS 'Indica se a promoção foi enviada via PUSH';
+COMMENT ON COLUMN promocoes.notification_whatsapp IS 'Indica se a promoção foi enviada via WhatsApp';
+COMMENT ON COLUMN promocoes.notification_telegram IS 'Indica se a promoção foi enviada via Telegram';
